@@ -1,3 +1,4 @@
+//mygf/src/admin/types/course.ts
 export type CourseStatus = 'draft' | 'published' | 'archived'
 export type CourseVisibility = 'public' | 'private' | 'unlisted'
 

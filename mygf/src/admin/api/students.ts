@@ -3,7 +3,6 @@ import { api } from './client'
 import { USE_MOCK } from './env'
 import { StudentsDB } from './mockStudents'
 import type { Student, StudentFilters, StudentStatus } from '../types/student'
-import { logAudit } from '../api/audit'
 
 export function listStudents(filters: StudentFilters) {
   if (USE_MOCK) return StudentsDB.list(filters)
@@ -13,14 +12,6 @@ export function listStudents(filters: StudentFilters) {
 export function createStudent(payload: Omit<Student,'id'|'createdAt'|'updatedAt'>) {
   if (USE_MOCK) {
     return StudentsDB.create(payload).then(rec => {
-      logAudit({
-        action: 'create',
-        resource: 'student',
-        resourceId: rec.id,
-        orgId: rec.orgId,
-        message: `Created student ${rec.email}`,
-        after: rec,
-      })
       return rec
     })
   }
@@ -30,15 +21,6 @@ export function createStudent(payload: Omit<Student,'id'|'createdAt'|'updatedAt'
 export function updateStudent(id: string, patch: Partial<Student>) {
   if (USE_MOCK) {
     return StudentsDB.update(id, patch).then(rec => {
-      logAudit({
-        action: 'update',
-        resource: 'student',
-        resourceId: id,
-        orgId: rec.orgId,
-        message: `Updated student ${rec.email}`,
-        // If you want a real diff, log from inside StudentsDB.update where you have 'before'
-        after: rec,
-      })
       return rec
     })
   }
@@ -49,12 +31,6 @@ export function deleteStudent(id: string) {
   if (USE_MOCK) {
     // If your StudentsDB.delete can return the deleted record, you can include it in 'before'
     return StudentsDB.delete(id).then(res => {
-      logAudit({
-        action: 'delete',
-        resource: 'student',
-        resourceId: id,
-        message: `Deleted student ${id}`,
-      })
       return res
     })
   }
@@ -64,14 +40,6 @@ export function deleteStudent(id: string) {
 export function setStudentStatus(id: string, status: StudentStatus) {
   if (USE_MOCK) {
     return StudentsDB.setStatus(id, status).then(rec => {
-      logAudit({
-        action: 'status_change',
-        resource: 'student',
-        resourceId: id,
-        orgId: rec.orgId,
-        message: `Student status -> ${status}`,
-        after: rec,
-      })
       return rec
     })
   }
@@ -83,12 +51,6 @@ export function bulkUpsertStudents(
 ) {
   if (USE_MOCK) {
     return StudentsDB.bulkUpsert(rows).then(summary => {
-      logAudit({
-        action: 'bulk_upsert',
-        resource: 'student',
-        message: `Bulk upsert students: created ${summary.created}, updated ${summary.updated}`,
-        meta: summary,
-      })
       return summary
     })
   }

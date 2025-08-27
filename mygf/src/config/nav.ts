@@ -61,9 +61,9 @@ export const MENUS: RoleMenuMap = {
       heading: "Learning",
       items: [
         { label: "Courses",      to: `${AD}/courses`,     icon: BookOpen },
-        { label: "Curriculum",   to: `${AD}/curriculum`,  icon: FileText },
+        // { label: "Curriculum",   to: `${AD}/curriculum`,  icon: FileText },
         { label: "Assessments",  to: `${AD}/assessments`, icon: FileText },
-        { label: "Assignments",  to: `${AD}/assignments`, icon: FileText },
+        // { label: "Assignments",  to: `${AD}/assignments`, icon: FileText },
       ],
     },
     {
@@ -86,9 +86,9 @@ export const MENUS: RoleMenuMap = {
       items: [
         { label: "Certificates", to: `${AD}/certificates`, icon: FileText },
         { label: "Reviews",      to: `${AD}/reviews`,      icon: FileText },
-        { label: "Media",        to: `${AD}/media`,        icon: FileText },
+        // { label: "Media",        to: `${AD}/media`,        icon: FileText },
         { label: "Marketing",    to: `${AD}/marketing`,    icon: FileText },
-        { label: "Community",    to: `${AD}/community`,    icon: Users },
+        // { label: "Community",    to: `${AD}/community`,    icon: Users },
         { label: "Reports",      to: `${AD}/reports`,      icon: BarChart },
       ],
     },

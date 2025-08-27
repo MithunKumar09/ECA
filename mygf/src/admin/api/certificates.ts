@@ -3,7 +3,6 @@ import { api } from './client'
 import { USE_MOCK } from './env'
 import { CertificatesDB } from './mockCertificates'
 import type { Certificate, CertificateFilters, CertificateStatus, CertificateTemplate } from '../types/certificate'
-import { logAudit } from '../api/audit'
 
 export function listCertificates(filters: CertificateFilters){
   if (USE_MOCK) return CertificatesDB.list(filters)
@@ -13,7 +12,6 @@ export function listCertificates(filters: CertificateFilters){
 export function createCertificate(payload: Omit<Certificate,'id'|'createdAt'|'updatedAt'>){
   if (USE_MOCK) {
     return CertificatesDB.create(payload).then(rec => {
-      logAudit({ action:'create', resource:'certificate', resourceId:rec.id, message:`Created certificate ${rec.title}`, after:rec })
       return rec
     })
   }
@@ -23,7 +21,6 @@ export function createCertificate(payload: Omit<Certificate,'id'|'createdAt'|'up
 export function updateCertificate(id: string, patch: Partial<Certificate>){
   if (USE_MOCK) {
     return CertificatesDB.update(id, patch).then(rec => {
-      logAudit({ action:'update', resource:'certificate', resourceId:id, message:`Updated certificate ${rec.title}`, after:rec })
       return rec
     })
   }
@@ -33,7 +30,6 @@ export function updateCertificate(id: string, patch: Partial<Certificate>){
 export function deleteCertificate(id: string){
   if (USE_MOCK) {
     return CertificatesDB.delete(id).then(res => {
-      logAudit({ action:'delete', resource:'certificate', resourceId:id, message:`Deleted certificate ${id}` })
       return res
     })
   }
@@ -43,7 +39,6 @@ export function deleteCertificate(id: string){
 export function setCertificateStatus(id: string, status: CertificateStatus){
   if (USE_MOCK) {
     return CertificatesDB.setStatus(id, status).then(rec => {
-      logAudit({ action:'status_change', resource:'certificate', resourceId:id, message:`Certificate status -> ${status}`, after:rec })
       return rec
     })
   }
@@ -111,7 +106,6 @@ export function listCertificateTemplates(){
 export function addDemoCertificate(templateId: string){
   if (USE_MOCK) {
     return CertificatesDB.addDemo(templateId).then(rec => {
-      logAudit({ action:'create', resource:'certificate', resourceId:rec.id, message:`Added demo certificate via template ${templateId}`, after:rec })
       return rec
     })
   }

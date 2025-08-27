@@ -1,7 +1,6 @@
 //src/api/mockOrgs.ts
 import type { Organization, OrgFilters, OrgStatus } from '../types/org'
 import { StudentsDB } from './mockStudents'
-import { logAudit } from '../api/audit'
 
 const KEY = 'mock:orgs'
 const now = () => new Date().toISOString()

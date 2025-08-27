@@ -29,16 +29,13 @@ type AuthState = {
   initialized: boolean;
   status: Status;
 
-  // primary API
   login: (payload: { user: User; tokens?: Tokens }) => void;
   verifyMfa: () => void;
   logout: () => void;
 
-  // helpers (back-compat)
   setTokens: (t?: Tokens) => void;
   setUser: (u: User | null) => void;
 
-  // bootstrap from cookie-backed session
   hydrate: () => Promise<void>;
 };
 
@@ -52,20 +49,25 @@ export const useAuth = create<AuthState>()(
       status: "idle",
 
       login: ({ user, tokens }) =>
-        set({
-          user,
-          tokens: tokens ?? {},
-          mfaVerified: !user?.mfa?.required,
-          status: "ready",
-          initialized: true,
+        set(() => {
+          // Mark that we have a refresh cookie/session
+          localStorage.setItem("auth:hasRefresh", "1");
+          return {
+            user,
+            tokens: tokens ?? {},
+            mfaVerified: !user?.mfa?.required,
+            status: "ready",
+            initialized: true,
+          };
         }),
 
       verifyMfa: () => set({ mfaVerified: true }),
 
       logout: async () => {
         try { await apiLogout(); } catch {}
+        // clear local hint so public pages won't try to hydrate
+        localStorage.removeItem("auth:hasRefresh");
         set({ user: null, tokens: {}, mfaVerified: false, status: "ready" });
-        // Optional but recommended: hard redirect to clear any in-memory state
         window.location.assign("/login");
       },
 
@@ -76,8 +78,9 @@ export const useAuth = create<AuthState>()(
         if (get().status === "checking") return;
         set({ status: "checking" });
         try {
-          const res = await checkSession(); // GET /api/auth/check (uses HttpOnly cookie)
+          const res = await checkSession();
           if (res?.ok && res.user) {
+            localStorage.setItem("auth:hasRefresh", "1");
             set({
               user: res.user,
               tokens: {},
@@ -86,6 +89,7 @@ export const useAuth = create<AuthState>()(
               status: "ready",
             });
           } else {
+            localStorage.removeItem("auth:hasRefresh");
             set({
               user: null,
               tokens: {},
@@ -95,6 +99,7 @@ export const useAuth = create<AuthState>()(
             });
           }
         } catch {
+          localStorage.removeItem("auth:hasRefresh");
           set({
             user: null,
             tokens: {},

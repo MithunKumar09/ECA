@@ -1,72 +1,103 @@
-// src/api/audit.ts
-import { AuditDB } from './mockAudit'
-import type { AuditAction, AuditResource, AuditStatus } from '../types/audit'
+// src/admin/api/audit.ts
+import { api } from "./client";
 
-// Optional: read the current user from your Zustand auth store (cookie-only session)
-let getAuthState: (() => { user?: any }) | undefined;
-try {
-  const { useAuth } = require('../auth/store');
-  if (useAuth?.getState) {
-    getAuthState = useAuth.getState;
-  }
-} catch { /* store may not exist in some bundles (mock audit usage). */ }
+export type AuditLog = {
+  id?: string;
+  _id?: string;
+  action?: string;
+  resource?: string;
+  resourceId?: string;
+  message?: string;
+  actorId?: string;
+  actorEmail?: string;
+  actorName?: string;
+  actorRole?: string;
+  orgId?: string | null;
+  createdAt?: string;
+};
 
-// Current actor comes from in-memory store (preferred) or falls back to empty.
-// No localStorage reads (cookie-only auth).
-export function currentActor() {
+// ---- READ: recent audit logs (resilient, no console noise if route absent) ----
+export async function listAuditLogs(params?: {
+  limit?: number;
+  roles?: string[];    // e.g. ["admin","vendor"]
+  orgOnly?: boolean;   // non-SA is org-scoped server-side anyway
+}): Promise<AuditLog[]> {
+  const query: any = {};
+  if (params?.limit) query.limit = params.limit;
+  if (params?.roles?.length) query.roles = params.roles.join(",");
+
   try {
-    const user = getAuthState?.().user;
-    if (user) {
-      return {
-        actorId: user.id ?? user._id,
-        actorEmail: user.email,
-        actorName: user.name,
-        actorRole: user.role,
-      };
+    const r = await api.get("/audit/logs", { params: query });
+    return Array.isArray(r.data) ? r.data : [];
+  } catch {
+    try {
+      const r = await api.get("/sa/audit/logs", { params: query });
+      return Array.isArray(r.data) ? r.data : [];
+    } catch {
+      return [];
     }
-  } catch {}
-  return {};
+  }
 }
 
-export function logAudit(params: {
-  action: AuditAction
-  status?: AuditStatus
-  resource: AuditResource
-  resourceId?: string
-  orgId?: string
-  message?: string
-  method?: string
-  path?: string
-  before?: any
-  after?: any
-  meta?: Record<string, any>
-}) {
-  return AuditDB.log({
-    status: params.status || 'success',
-    ...currentActor(),
-    ...params,
-  });
-}
+// ---- WRITE: lightweight mutation logger used by axios interceptors ----
+// Safe by default (NO-OP). Set VITE_ENABLE_CLIENT_AUDIT=1 to turn it on.
+// Uses navigator.sendBeacon to avoid interceptor recursion / retry loops.
+const ENABLE_CLIENT_AUDIT =
+  (import.meta as any)?.env?.VITE_ENABLE_CLIENT_AUDIT === "1";
 
-/** For axios mutations (optional) */
-export function logAxiosMutation(ok: boolean, cfg: any, respOrErr: any) {
-  const method = (cfg?.method || '').toUpperCase();
-  const isMut = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-  if (!isMut) return;
-  const status: AuditStatus = ok ? 'success' : 'failure';
-  const path = cfg?.url || '';
-  const msg = ok ? 'HTTP mutation' : (respOrErr?.message || 'HTTP mutation failed');
-  logAudit({
-    action: 'other',
-    status,
-    resource: 'other',
-    path,
-    method,
-    message: msg,
-    meta: {
-      request: cfg?.data,
-      response: ok ? respOrErr?.data : undefined,
-      error: ok ? undefined : (respOrErr?.response?.data || respOrErr?.message),
-    },
-  });
+export function logAxiosMutation(
+  success: boolean,
+  cfg?: any,
+  respOrErr?: any
+): void {
+  try {
+    if (!ENABLE_CLIENT_AUDIT || !cfg) return;
+
+    const method = String(cfg.method || "get").toLowerCase();
+    // only log mutations
+    if (!["post", "put", "patch", "delete"].includes(method)) return;
+
+    // avoid logging auth refresh/check noise
+    const url = String(cfg.url || "");
+    if (url.includes("/auth/refresh") || url.includes("/auth/check")) return;
+
+    const status =
+      respOrErr?.status ?? respOrErr?.response?.status ?? undefined;
+
+    const payload = {
+      ts: Date.now(),
+      success,
+      method,
+      url,
+      status,
+    };
+
+    const base =
+      (import.meta as any)?.env?.VITE_API_URL
+        ? `${(import.meta as any).env.VITE_API_URL}/api`
+        : "/api";
+
+    const beaconUrl = `${base}/audit/client`;
+
+    // Prefer sendBeacon (non-blocking, no interceptor recursion).
+    if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+      const blob = new Blob([JSON.stringify(payload)], {
+        type: "application/json",
+      });
+      (navigator as any).sendBeacon(beaconUrl, blob);
+      return;
+    }
+
+    // Fallback: fire-and-forget fetch; swallow all errors.
+    fetch(beaconUrl, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+      mode: "cors",
+    }).catch(() => {});
+  } catch {
+    // never throw from a logger
+  }
 }

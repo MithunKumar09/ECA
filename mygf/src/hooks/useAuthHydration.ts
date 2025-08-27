@@ -1,7 +1,16 @@
-// mygf/src/hooks/useAuthHydration.ts
-import { useEffect, useState } from "react";
+// src/hooks/useAuthHydration.ts
+import { useEffect, useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/store";
 import { checkSession } from "../api/auth";
+
+/**
+ * Public routes: we avoid calling /auth/check unless we know the user
+ * previously had a refresh cookie (localStorage hint).
+ */
+const PUBLIC_PREFIXES = ["/", "/home", "/login", "/signup", "/forgot-password", "/reset-password"];
+const isPublicPath = (pathname: string) =>
+  PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
 /**
  * Module-scoped guards so multiple components don't all call /auth/check
@@ -16,15 +25,31 @@ export function resetAuthHydration() {
 
 /**
  * One-time auth hydration from cookie-based session.
- * Keeps design/UX untouched; just fills Zustand with the current user.
+ * - On public pages, hydrate only if we previously had a session.
+ * - Silently swallow 401s.
  */
 export function useAuthHydration() {
   const { user, login: setAuthUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(hydratedOnce || !!user);
+  const ran = useRef(false);
+  const { pathname } = useLocation();
 
   useEffect(() => {
+    if (ran.current) return;
+    ran.current = true;
+
     if (hydratedOnce || user) {
+      setIsHydrated(true);
+      return;
+    }
+
+    const onPublic = isPublicPath(pathname);
+    const hadSession = localStorage.getItem("auth:hasRefresh") === "1";
+
+    // On public screens, skip hydration if we never had a refresh cookie
+    if (onPublic && !hadSession) {
+      hydratedOnce = true;
       setIsHydrated(true);
       return;
     }
@@ -38,11 +63,15 @@ export function useAuthHydration() {
       } else {
         inflight = (async () => {
           try {
-            const res = await checkSession();
+            const res = await checkSession(); // GET /api/auth/check
             if (!cancelled && res?.ok && res.user) {
-              // tokens are cookie-based; store user only
+              // Cookie-based; store user only
               setAuthUser({ user: res.user, tokens: undefined } as any);
+              // remember we had a session
+              localStorage.setItem("auth:hasRefresh", "1");
             }
+          } catch {
+            // ignore (401 etc.)
           } finally {
             hydratedOnce = true;
             inflight = null;
@@ -61,7 +90,7 @@ export function useAuthHydration() {
     return () => {
       cancelled = true;
     };
-  }, [user, setAuthUser]);
+  }, [user, setAuthUser, pathname]);
 
   return { user: user || null, isHydrated, isLoading };
 }

@@ -25,10 +25,30 @@ export function requireAuth(req, res, next) {
 }
 
 /** Exactly one role (kept for convenience) */
-export function requireRole(role) {
+export function requireRole(required) {
+  // Normalize `required` into a lowercase array of allowed roles
+  const toList = (val) => {
+    if (Array.isArray(val)) return val;
+    if (val && typeof val === "object") {
+      if (Array.isArray(val.anyOf)) return val.anyOf; // tolerate { anyOf: [...] }
+      if (Array.isArray(val.roles)) return val.roles; // tolerate { roles: [...] }
+    }
+    return [val]; // single string or unknown -> single-element list
+  };
+
+  const allowed = toList(required)
+    .filter(Boolean)
+    .map(r => String(r).toLowerCase());
+
   return (req, res, next) => {
-    const one = (req.user?.role || '').toString().toLowerCase();
-    if (!one || one !== role.toLowerCase()) return res.status(403).json({ error: "Forbidden" });
+    const userRole = String(req.user?.role ?? "").toLowerCase();
+
+    if (!userRole) {
+      return res.status(401).json({ ok: false, message: "Unauthenticated (no role)" });
+    }
+    if (allowed.length && !allowed.includes(userRole)) {
+      return res.status(403).json({ ok: false, message: "Forbidden" });
+    }
     next();
   };
 }

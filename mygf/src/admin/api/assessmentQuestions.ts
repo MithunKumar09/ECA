@@ -3,7 +3,6 @@ import { api } from './client'
 import { USE_MOCK } from './env'
 import * as QA from './mockAssessmentQuestions'
 import type { AssessmentQuestion } from '../types/assessmentQuestion'
-import { logAudit } from '../api/audit'
 import { AssessmentQuestionsDB } from './mockAssessmentQuestions';
 
 // Accept either export name
@@ -20,7 +19,6 @@ export function createAssessmentQuestion(
 ){
   if (USE_MOCK) {
     return QuestionsDB.create(payload).then((rec: any) => {
-      logAudit({ action:'create', resource:'question', resourceId:rec.id, message:`Created question in assessment ${payload.assessmentId}`, after:rec })
       return rec
     })
   }
@@ -30,7 +28,6 @@ export function createAssessmentQuestion(
 export function updateAssessmentQuestion(id: string, patch: Partial<AssessmentQuestion>){
   if (USE_MOCK) {
     return QuestionsDB.update(id, patch).then((rec: any) => {
-      logAudit({ action:'update', resource:'question', resourceId:id, message:`Updated question ${id}`, after:rec })
       return rec
     })
   }
@@ -40,7 +37,6 @@ export function updateAssessmentQuestion(id: string, patch: Partial<AssessmentQu
 export function deleteAssessmentQuestion(id: string){
   if (USE_MOCK) {
     return QuestionsDB.delete(id).then((res: any) => {
-      logAudit({ action:'delete', resource:'question', resourceId:id, message:`Deleted question ${id}` })
       return res
     })
   }
@@ -50,7 +46,6 @@ export function deleteAssessmentQuestion(id: string){
 export function reorderAssessmentQuestions(assessmentId: string, orderedIds: string[]) {
   if (USE_MOCK) {
     return QuestionsDB.reorder(assessmentId, orderedIds).then((list: any) => {
-      logAudit({ action:'reorder', resource:'question', resourceId:assessmentId, message:`Reordered questions in ${assessmentId}`, meta:{ orderedIds } })
       return list
     })
   }
@@ -60,7 +55,6 @@ export function reorderAssessmentQuestions(assessmentId: string, orderedIds: str
 export function attachQuestionFile(id: string, file:{ id:string; name:string; mime:string; size:number; dataUrl:string }) {
   if (USE_MOCK) {
     return QuestionsDB.attachFile(id, file).then((rec: any) => {
-      logAudit({ action:'attach', resource:'question', resourceId:id, message:`Attached ${file.name} to question ${id}`, after:rec })
       return rec
     })
   }
@@ -69,7 +63,6 @@ export function attachQuestionFile(id: string, file:{ id:string; name:string; mi
 export function removeQuestionAttachment(id: string, attId: string) {
   if (USE_MOCK) {
     return QuestionsDB.removeAttachment(id, attId).then((rec: any) => {
-      logAudit({ action:'detach', resource:'question', resourceId:id, message:`Removed attachment from question ${id}`, after:rec })
       return rec
     })
   }

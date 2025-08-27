@@ -17,6 +17,8 @@ import saUsersRoutes from "./src/routes/saUsers.js";
 import adUsersRoutes from "./src/routes/adUsers.js";
 import assessmentsRoutes from "./src/routes/assessments.js";
 import assessmentGroupRoutes from "./src/routes/assessmentGroups.js";
+import saCoursesRoutes from "./src/routes/saCourses.js";
+import coursesRoutes from "./src/routes/courses.js";
 
 const app = express();
 
@@ -145,6 +147,8 @@ app.use("/api/sa/users", saUsersRoutes);
 app.use("/api/ad/users", adUsersRoutes);
 app.use("/api", assessmentsRoutes);
 app.use("/api", assessmentGroupRoutes);
+app.use('/api/sa/courses', saCoursesRoutes);
+app.use('/api/courses', coursesRoutes);
 
 const PORT = process.env.PORT || 5002;
 
