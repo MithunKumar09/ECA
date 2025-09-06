@@ -75,7 +75,6 @@ const corsOptions = {
   optionsSuccessStatus: 204, 
 }; 
 app.use(cors(corsOptions)); 
-app.options("*", cors(corsOptions));   // ensure all preflights are answered
 
 // 🔐 Razorpay webhook requires RAW body (do this before json())
 app.post("/api/checkout/razorpay/webhook", express.raw({ type: "application/json" }), rzpCtrl.webhook);
