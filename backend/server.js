@@ -62,18 +62,20 @@ if (!allow.length && process.env.NODE_ENV !== "production") {
   allow = ["http://localhost:5173", "https://localhost:5173"];
 }
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      // With credentials:true, never reflect arbitrary origins.
-      if (!origin) return cb(null, false); // block unknown/non-browser origins
-      return cb(null, allow.includes(origin));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
-  })
-);
+const corsOptions = { 
+  origin(origin, cb) { 
+    if (!origin) return cb(null, false);          // keep strict; set true if you want Postman/curl 
+    return cb(null, allow.includes(origin)); 
+  }, 
+  credentials: true, 
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], 
+  // Option A (restrictive): enumerate headers you allow 
+  allowedHeaders: ["Content-Type","Authorization","X-CSRF-Token","X-Requested-With"], 
+  // Option B (easier): omit allowedHeaders entirely to reflect the request's Access-Control-Request-Headers 
+  optionsSuccessStatus: 204, 
+}; 
+app.use(cors(corsOptions)); 
+app.options("*", cors(corsOptions));   // ensure all preflights are answered
 
 // 🔐 Razorpay webhook requires RAW body (do this before json())
 app.post("/api/checkout/razorpay/webhook", express.raw({ type: "application/json" }), rzpCtrl.webhook);
