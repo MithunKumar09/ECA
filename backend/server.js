@@ -66,21 +66,32 @@ if (!allow.length && process.env.NODE_ENV !== "production") {
 
 const corsOptions = { 
   origin(origin, cb) { 
-    if (!origin) return cb(null, false);          // keep strict; set true if you want Postman/curl 
+    if (!origin) return cb(null, false);          // strict: reject requests without Origin
     return cb(null, allow.includes(origin)); 
   }, 
   credentials: true, 
   methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], 
-  // Option A (restrictive): enumerate headers you allow 
-  // allowedHeaders: ["Content-Type","Authorization","X-CSRF-Token","X-Requested-With"], 
-  // Option B (easier): omit allowedHeaders entirely to reflect the request's Access-Control-Request-Headers 
   optionsSuccessStatus: 204, 
 }; 
+
+// Apply CORS to all routes
 app.use(cors(corsOptions));
-// Ensure preflights succeed 
-app.options("*", cors(corsOptions));
+
+// Handle preflight requests explicitly (safe for Express 5)
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return cors(corsOptions)(req, res, () => res.sendStatus(204));
+  }
+  next();
+});
+
 // Expose ETag and version headers to browsers
-app.use((req, res, next) => { res.header('Access-Control-Expose-Headers', 'ETag, X-Data-Version'); next(); }); 
+app.use((req, res, next) => {
+  res.header("Access-Control-Expose-Headers", "ETag, X-Data-Version");
+  res.header("Vary", "Origin"); // good for CDN/proxy caching
+  next();
+});
+
 
 // 🔐 Razorpay webhook requires RAW body (do this before json())
 app.post("/api/checkout/razorpay/webhook", express.raw({ type: "application/json" }), rzpCtrl.webhook);
