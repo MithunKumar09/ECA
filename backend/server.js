@@ -72,11 +72,13 @@ const corsOptions = {
   credentials: true, 
   methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], 
   // Option A (restrictive): enumerate headers you allow 
-  allowedHeaders: ["Content-Type","Authorization","X-CSRF-Token","X-Requested-With"], 
+  // allowedHeaders: ["Content-Type","Authorization","X-CSRF-Token","X-Requested-With"], 
   // Option B (easier): omit allowedHeaders entirely to reflect the request's Access-Control-Request-Headers 
   optionsSuccessStatus: 204, 
 }; 
 app.use(cors(corsOptions));
+// Ensure preflights succeed 
+app.options("*", cors(corsOptions));
 // Expose ETag and version headers to browsers
 app.use((req, res, next) => { res.header('Access-Control-Expose-Headers', 'ETag, X-Data-Version'); next(); }); 
 
