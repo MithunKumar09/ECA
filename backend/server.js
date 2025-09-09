@@ -241,6 +241,7 @@ if (DEBUG_STUDENT) {
   });
 }
 
+app.use("/api/public", publicRoutes);
 app.use("/api", authRoutes);
 app.use("/api", userRoutes);
 app.use("/api/organizations", organizationsRouter);
@@ -282,7 +283,6 @@ const templatesDir = fs.existsSync(templatesCandidate1) ? templatesCandidate1 : 
 app.use("/api/static/templates", express.static(templatesDir));
 app.use("/api", certificatesRouter);
 app.use("/api", notificationsRouter);
-app.use("/api/public", publicRoutes);
 app.use("/api/admin", adminReviewRouter);
 
 const PORT = process.env.PORT || 5002;
