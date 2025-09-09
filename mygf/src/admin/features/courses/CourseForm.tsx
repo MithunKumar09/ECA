@@ -14,6 +14,7 @@ import type {
 } from "../../types/course";
 import { SectionCard, Field } from "./ui";
 import { ensureCsrfToken, getCsrfToken } from "../../../config/csrf";
+import { API_ROOT } from "../../../config/env";
 import { listAdUsers } from "../../api/adUsers";
 import { listSaUsers } from "../../api/saUsers";
 import { useAuth } from "../../auth/store";
@@ -102,6 +103,17 @@ export default function CourseFormModal({
   // progress UI
   const [demoUploading, setDemoUploading] = useState(false);
   const [bundleUploading, setBundleUploading] = useState(false);
+
+  // ★ NEW: per-chapter cover image uploading tracker (avoid duplicate clicks)
+  const [coverUploading, setCoverUploading] = useState<Set<number>>(new Set());
+  const markCoverUploading = (idx: number, on: boolean) =>
+    setCoverUploading((prev) => {
+      const n = new Set(prev);
+      if (on) n.add(idx);
+      else n.delete(idx);
+      return n;
+    });
+
   const [isSaving, setIsSaving] = useState(false);
 
   // ── new bundle-level fields ───────────────────────────────────────────────────
@@ -280,7 +292,8 @@ export default function CourseFormModal({
     fd.append("file", file);
     await ensureCsrfToken();
     const tok = getCsrfToken();
-    const r = await fetch(path, {
+    const url = API_ROOT ? `${API_ROOT}${path}` : path;
+    const r = await fetch(url, {
       method: "POST",
       body: fd,
       credentials: "include",
@@ -296,8 +309,15 @@ export default function CourseFormModal({
 
   async function pickLocalAndSet(file: File, kind: "image" | "video", idx: number) {
     if (kind === "image") {
-      const { url } = await uploadTo("/api/uploads/image", file);
-      updateChapter(idx, "coverUrl", url as any);
+      // ★ Avoid duplicate clicks for this chapter’s cover button
+      if (coverUploading.has(idx)) return;
+      markCoverUploading(idx, true);
+      try {
+        const { url } = await uploadTo("/api/uploads/image", file);
+        updateChapter(idx, "coverUrl", url as any);
+      } finally {
+        markCoverUploading(idx, false);
+      }
     } else {
       const { url } = await uploadTo("/api/uploads/video", file);
       updateChapter(idx, "videoUrl", url as any);
@@ -305,6 +325,7 @@ export default function CourseFormModal({
   }
 
   async function uploadBundleCover(file: File) {
+    if (bundleUploading) return; // ★ guard
     setBundleUploading(true);
     try {
       const { url } = await uploadTo("/api/uploads/image", file);
@@ -313,7 +334,6 @@ export default function CourseFormModal({
       setBundleUploading(false);
     }
   }
-
   function addChapter() {
     setChapters((arr) => [
       ...arr,
