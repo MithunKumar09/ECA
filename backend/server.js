@@ -93,11 +93,8 @@ const corsOptions = {
   preflightContinue: false,
 };
 
-// Apply CORS to all routes
+// Apply CORS to all routes (this already handles OPTIONS preflight requests)
 app.use(cors(corsOptions));
-
-// Explicit preflight handler for all routes (ensures OPTIONS are properly handled)
-app.options('*', cors(corsOptions));
 
 // Expose ETag and version headers to browsers
 app.use((req, res, next) => {
