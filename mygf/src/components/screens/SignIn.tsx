@@ -1,6 +1,6 @@
 // mygf/src/components/screens/SignIn.tsx
 import React, { useEffect, useState } from 'react';
-import NavBar from "../home/NavBar";
+import HtmlNavBar from "../common/HtmlNavBar";
 import { useNavigate, useLocation } from 'react-router-dom';
 import Footer from "../common/Footer";
 import { useAuth } from '../../auth/store';
@@ -103,7 +103,7 @@ const SignIn: React.FC = () => {
 
   return (
     <>
-      <NavBar />
+        <HtmlNavBar />
             <div
         className="relative flex items-center justify-center min-h-screen px-4
                    pt-24 md:pt-28

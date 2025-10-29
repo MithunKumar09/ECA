@@ -81,6 +81,7 @@ export default function CourseFormModal({
   const [title, setTitle] = useState(initial?.title || "");
   const [slug, setSlug] = useState(initial?.slug || "");
   const [category, setCategory] = useState(initial?.category || "");
+  const [programType, setProgramType] = useState(initial?.programType || "");
 
   const [description, setDescription] = useState<string>(initial?.description || "");
   const [tagsInput, setTagsInput] = useState<string>((initial?.tags || []).join(", "));
@@ -251,6 +252,7 @@ export default function CourseFormModal({
     setTitle(initial?.title || "");
     setSlug(initial?.slug || "");
     setCategory(initial?.category || "");
+    setProgramType(initial?.programType || "");
     setDescription(initial?.description || "");
     setTagsInput((initial?.tags || []).join(", "));
     setPriceRs(initial ? (initial.price ?? 0) / 100 : 0);
@@ -370,6 +372,7 @@ export default function CourseFormModal({
 
   const canSubmit =
     title.trim().length > 0 &&
+    programType.trim().length > 0 &&
     (!isBundled || chapters.every((ch) => (ch.title || "").trim().length > 0));
 
     const tagChips = useMemo(() => {
@@ -398,6 +401,7 @@ export default function CourseFormModal({
                 title,
                 slug,
                 category,
+                programType,
                 price: Math.round((Number.isFinite(priceRs) ? priceRs : 0) * 100), // paise
                 visibility,
                 status,
@@ -526,6 +530,15 @@ export default function CourseFormModal({
                       <option value="published">Published</option>
                       <option value="archived">Archived</option>
                     </Select>
+                  </Field>
+
+                  {/* NEW: Program Type (required) */}
+                  <Field label="Program Type" required>
+                    <Input 
+                      value={programType} 
+                      onChange={(e) => setProgramType(e.target.value)} 
+                      placeholder="e.g., Reiki, Dowsing, Yoga, Meditation, etc." 
+                    />
                   </Field>
 
                   {/* Demo video (10s) */}

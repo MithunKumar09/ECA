@@ -53,6 +53,7 @@ function sanitize(doc) {
     slug: o.slug || null,
     description: o.description || null,
     category: o.category || null,
+    programType: o.programType || null,
     courseType: o.courseType || "paid",
     durationText: o.durationText || "",
     teacherId,
@@ -93,7 +94,7 @@ export async function list(req, res) {
 
   if (q) {
     const rx = { $regex: String(q), $options: "i" };
-    and.push({ $or: [{ title: rx }, { slug: rx }, { category: rx }, { description: rx }, { tags: rx }] });
+    and.push({ $or: [{ title: rx }, { slug: rx }, { category: rx }, { programType: rx }, { description: rx }, { tags: rx }] });
   }
   if (status !== "all") and.push({ status });
 
@@ -163,7 +164,7 @@ export async function list(req, res) {
 // POST /sa/courses
 export async function create(req, res) {
   const {
-    title, slug, description, category,
+    title, slug, description, category, programType,
     price, visibility, status, orgId, ownerEmail, tags,
     // NEW
     isBundled, chapters, demoVideoUrl,
@@ -172,6 +173,7 @@ export async function create(req, res) {
     discountPercent, level, bundleCoverUrl, platformFee,
   } = req.body || {};
   if (!title) return res.status(400).json({ ok: false, message: "title required" });
+  if (!programType) return res.status(400).json({ ok: false, message: "programType required" });
 
   let ownerId = null;
   if (ownerEmail) {
@@ -202,6 +204,7 @@ export async function create(req, res) {
     slug,
     description,
     category,
+    programType,
     courseType: (courseType === "free" ? "free" : "paid"),
     durationText: typeof durationText === "string" ? durationText : "",
     teacherId: teacherObjectId,
@@ -236,7 +239,7 @@ export async function patch(req, res) {
 
   const p = {};
   const pick = [
-    "title", "slug", "description", "category",
+    "title", "slug", "description", "category", "programType",
     "price", "visibility", "status", "orgId", "tags",
     // NEW fields
     "isBundled", "chapters", "demoVideoUrl",
@@ -360,6 +363,7 @@ export async function bulkUpsert(req, res) {
         slug,
         description: r.description || null,
         category: r.category || null,
+        programType: r.programType || null,
         courseType: String(r.courseType || r.type || "paid").toLowerCase() === "free" ? "free" : "paid",
         durationText: typeof r.durationText === "string"
           ? r.durationText

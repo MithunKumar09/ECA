@@ -23,6 +23,7 @@ const CourseSchema = new mongoose.Schema({
   slug:  { type: String, trim: true, lowercase: true, index: true, sparse: true },
   description: { type: String, trim: true },
   category: { type: String, trim: true },
+  programType: { type: String, trim: true, required: true }, // NEW: required field
 
   // pricing & visibility
   price: { type: Number, default: 0 }, // paise

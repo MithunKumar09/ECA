@@ -27,6 +27,15 @@ const isAuthed = isAuthenticated;
     };
   }, []);
 
+  // Auto-open join modal if sessionStorage flag is set (from home.html)
+  useEffect(() => {
+    const autoOpen = sessionStorage.getItem('autoOpenJoinModal');
+    if (autoOpen === 'true') {
+      sessionStorage.removeItem('autoOpenJoinModal');
+      setJoinOpen(true);
+    }
+  }, []);
+
   // close on ESC + lock body scroll while open
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileOpen(false);

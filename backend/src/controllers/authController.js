@@ -10,7 +10,7 @@ import { encryptTotpSecret, decryptTotpSecret } from "../utils/mfaCrypto.js";
 import { setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
 import User from "../models/User.js";
 import Invitation from "../models/Invitation.js";
-import { sendOtpEmail, sendInvitationEmail } from "../utils/email.js";
+import { sendOtpEmail, sendInvitationEmail, sendPasswordResetEmail } from "../utils/email.js";
 import {
   signAccessToken,
   signRefreshToken,
@@ -35,7 +35,7 @@ const RefreshTokenSchema = new mongoose.Schema(
 const RefreshToken =
   mongoose.models.RefreshToken || mongoose.model("RefreshToken", RefreshTokenSchema);
 
-const ACCESS_TTL = process.env.ACCESS_TTL || "15m";
+const ACCESS_TTL = process.env.ACCESS_TTL || "1h"; // Increased to 1 hour for better UX
 const REFRESH_TTL_SEC = parseInt(process.env.REFRESH_TTL_SEC || `${60 * 60 * 24 * 30}`, 10);
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
@@ -486,10 +486,19 @@ export async function refresh(req, res) {
 
   try {
     const rt = req.cookies?.["__Host-refresh"] || req.cookies?.sr;
-    alog("[refresh:start]", { rid, hasCookie: !!rt, ip, ua });
+    const allCookies = Object.keys(req.cookies || {});
+    alog("[refresh:start]", { 
+      rid, 
+      hasCookie: !!rt, 
+      ip, 
+      ua,
+      cookieNames: allCookies,
+      hostRefresh: !!req.cookies?.["__Host-refresh"],
+      sr: !!req.cookies?.sr
+    });
 
     if (!rt) {
-      alog("[refresh:fail] no-cookie", { rid });
+      alog("[refresh:fail] no-cookie", { rid, availableCookies: allCookies });
       return res.status(401).json({ ok: false });
     }
 
@@ -615,4 +624,180 @@ export async function signupStudent(req, res) {
     passwordHash,
   });
   return res.json({ ok: true });
+}
+
+export async function resetPassword(req, res) {
+  const started = Date.now();
+  const rid = crypto.randomUUID();
+  const ua = req.get("User-Agent") || "unknown";
+  const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+  
+  alog("[resetPassword:start]", { rid, ip, ua });
+
+  try {
+    const { token, password, newPassword, email } = req.body || {};
+    
+    // Support both frontend formats: {token, password} or {token, newPassword, email}
+    const resetToken = token;
+    const resetPassword = password || newPassword;
+    
+    // Validate inputs
+    if (!resetToken || typeof resetToken !== 'string' || !resetToken.trim()) {
+      alog("[resetPassword:fail] missing-token", { rid, token: !!resetToken });
+      return res.status(400).json({ ok: false, message: 'Reset token is required' });
+    }
+
+    if (!resetPassword || typeof resetPassword !== 'string' || resetPassword.length < 6) {
+      alog("[resetPassword:fail] invalid-password", { rid, passwordLength: resetPassword?.length || 0 });
+      return res.status(400).json({ ok: false, message: 'Password must be at least 6 characters long' });
+    }
+
+    const tokenHash = hash(resetToken.trim());
+    
+    // Find user with valid reset token
+    const user = await User.findOne({
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      alog("[resetPassword:fail] invalid-token", { rid, tokenHash: tokenHash.substring(0, 8) + '...' });
+      return res.status(400).json({ ok: false, message: 'Invalid or expired reset token' });
+    }
+
+    // Check if user is active
+    if (user.status !== 'active') {
+      alog("[resetPassword:fail] user-inactive]", { rid, email: user.email, status: user.status });
+      return res.status(400).json({ ok: false, message: 'Account is disabled' });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(resetPassword, 12);
+
+    // Update user with new password and clear reset token
+    user.passwordHash = passwordHash;
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    alog("[resetPassword:success]", { 
+      rid, 
+      email: user.email, 
+      userId: user._id,
+      ms: Date.now() - started
+    });
+
+    return res.json({ ok: true, message: 'Password has been reset successfully' });
+
+  } catch (error) {
+    alog("[resetPassword:exception]", {
+      rid,
+      name: error?.name,
+      msg: error?.message,
+      stack: error?.stack?.split('\n')[0],
+      ms: Date.now() - started
+    });
+    
+    return res.status(500).json({ ok: false, message: 'Something went wrong. Please try again later.' });
+  }
+}
+
+export async function forgotPassword(req, res) {
+  const started = Date.now();
+  const rid = crypto.randomUUID();
+  const ua = req.get("User-Agent") || "unknown";
+  const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+  
+  alog("[forgotPassword:start]", { rid, ip, ua });
+
+  try {
+    const { email } = req.body || {};
+    
+    // Validate email
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      alog("[forgotPassword:fail] missing-email", { rid, email: !!email });
+      return res.status(400).json({ ok: false, message: 'Email is required' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    
+    // Check if user exists
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      alog("[forgotPassword:user-not-found]", { rid, email: normalizedEmail });
+      return res.json({ ok: true, message: 'If an account with that email exists, we\'ve sent a password reset link.' });
+    }
+
+    // Check if user is active
+    if (user.status !== 'active') {
+      alog("[forgotPassword:user-inactive]", { rid, email: normalizedEmail, status: user.status });
+      return res.json({ ok: true, message: 'If an account with that email exists, we\'ve sent a password reset link.' });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = hash(resetToken);
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Store reset token in user document
+    user.passwordResetToken = resetTokenHash;
+    user.passwordResetExpires = resetExpires;
+    await user.save();
+
+    // Generate reset link
+    const resetLink = `${process.env.PUBLIC_APP_URL?.split(",")[0] || "http://localhost:5173"}/reset-password?token=${resetToken}`;
+    
+    alog("[forgotPassword:token-generated]", { 
+      rid, 
+      email: normalizedEmail, 
+      userId: user._id,
+      expiresAt: resetExpires.toISOString(),
+      resetLink: resetLink.substring(0, 50) + '...' // Log partial link for debugging
+    });
+
+    // Send email with reset link
+    try {
+      await sendPasswordResetEmail(normalizedEmail, resetLink);
+      alog("[forgotPassword:email-sent]", { 
+        rid, 
+        email: normalizedEmail, 
+        resetLink: resetLink.substring(0, 50) + '...',
+        success: true
+      });
+    } catch (emailError) {
+      alog("[forgotPassword:email-failed]", { 
+        rid, 
+        email: normalizedEmail, 
+        error: emailError?.message || 'Unknown email error',
+        stack: emailError?.stack?.split('\n')[0]
+      });
+      
+      // In development, always log the reset link for testing
+      console.log(`[DEV] Password reset link for ${normalizedEmail}: ${resetLink}`);
+      
+      // Don't fail the request if email fails - user still gets success message
+      // This prevents revealing if email exists when SMTP is down
+    }
+
+    alog("[forgotPassword:success]", { 
+      rid, 
+      email: normalizedEmail, 
+      userId: user._id,
+      ms: Date.now() - started
+    });
+
+    return res.json({ ok: true, message: 'If an account with that email exists, we\'ve sent a password reset link.' });
+
+  } catch (error) {
+    alog("[forgotPassword:exception]", {
+      rid,
+      name: error?.name,
+      msg: error?.message,
+      stack: error?.stack?.split('\n')[0], // First line of stack trace
+      ms: Date.now() - started
+    });
+    
+    return res.status(500).json({ ok: false, message: 'Something went wrong. Please try again later.' });
+  }
 }

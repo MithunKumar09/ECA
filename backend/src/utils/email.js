@@ -174,12 +174,63 @@ If you didn’t expect this, you can ignore this email.`;
   });
 }
 
+export async function sendPasswordResetEmail(to, resetLink) {
+  const subject = `Reset your ${BRAND} password`;
+  const preheader = "Click the link below to reset your password. Expires in 1 hour.";
+
+  const safeLink = String(resetLink || "");
+  const contentHtml = `
+    <p>Hello,</p>
+    <p>You requested to reset your password for your <b>${escapeHtml(BRAND)}</b> account.</p>
+    <p style="margin:18px 0"><a class="btn" href="${safeLink}">Reset Password</a></p>
+    <p class="muted">If the button doesn't work, copy and paste this URL into your browser:</p>
+    <p class="muted" style="word-break:break-all;">${escapeHtml(safeLink)}</p>
+    <p class="muted">This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>
+  `;
+  const html = renderTemplate({ title: "Reset your password", preheader, contentHtml });
+
+  const text = `Hello,
+
+You requested to reset your password for your ${BRAND} account.
+
+Click this link to reset your password:
+${safeLink}
+
+This link expires in 1 hour. If you didn't request this, you can ignore this email.`;
+
+  const messageId = `<reset-${Date.now()}-${Math.random().toString(36).slice(2)}@${APP_HOST}>`;
+
+  await mailer.sendMail({
+    from: process.env.MAIL_FROM || "ECA <no-reply@example.com>",
+    to,
+    subject,
+    text,
+    html,
+    headers: baseHeaders(),
+    messageId,
+  });
+}
+
 export async function verifyMailer() {
   try {
+    // Check if SMTP is configured
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.warn("[smtp] SMTP not configured - emails will not be sent");
+      console.warn("[smtp] Required environment variables:");
+      console.warn("[smtp]   SMTP_HOST (e.g., smtp.gmail.com)");
+      console.warn("[smtp]   SMTP_PORT (e.g., 587)");
+      console.warn("[smtp]   SMTP_USER (your email)");
+      console.warn("[smtp]   SMTP_PASS (your app password)");
+      console.warn("[smtp]   MAIL_FROM (e.g., 'ECA Academy <noreply@yourapp.com>')");
+      return false;
+    }
+    
     await mailer.verify();
     console.log("[smtp] transporter is ready");
+    return true;
   } catch (e) {
     console.error("[smtp] verify failed:", e?.message || e);
+    return false;
   }
 }
 

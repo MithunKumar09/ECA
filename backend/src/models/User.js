@@ -35,6 +35,9 @@ const userSchema = new mongoose.Schema({
   // Security completion (first MFA, etc). Default true for back-compat;
   // we will explicitly set false for new admin/vendor and MFA-required students.
   isVerified: { type: Boolean, default: true },
+  // Password reset fields
+  passwordResetToken: { type: String, default: null },
+  passwordResetExpires: { type: Date, default: null },
 }, { timestamps: true });
 
 userSchema.index({ updatedAt: -1 });

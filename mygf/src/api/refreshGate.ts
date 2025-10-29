@@ -12,7 +12,7 @@ declare global {
 
 const DBG = true; // flip to false to silence
 
-function dlog(...a: any[]) {
+function dlog(...a: unknown[]) {
   if (DBG) console.log(new Date().toISOString(), "[refreshGate]", ...a);
 }
 
@@ -24,7 +24,10 @@ async function doRefresh(): Promise<boolean> {
     headers: { "X-Requested-With": "XMLHttpRequest" },
   });
   dlog("result", res.status, res.ok);
-  if (!res.ok) return false;
+  if (!res.ok) {
+    dlog("refresh failed:", res.status, res.statusText);
+    return false;
+  }
 
   // rotate CSRF after success
   invalidateCsrfToken();

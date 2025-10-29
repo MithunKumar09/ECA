@@ -1,7 +1,7 @@
 // mygf/src/pages/auth/Mfa.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import NavBar from "../../components/home/NavBar";
+import HtmlNavBar from "../../components/common/HtmlNavBar";
 import { verifyMfa, resendEmailOtp, totpSetup, totpVerify } from "../../api/auth";
 import { useAuth } from "../../auth/store";
 
@@ -144,7 +144,7 @@ export default function Mfa() {
     <>
           {/* Full-bleed nav */}
       <div className="relative z-20">
-        <NavBar />
+        <HtmlNavBar />
       </div> 
     <div className="min-h-screen grid place-items-center bg-gray-50 p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 space-y-4">

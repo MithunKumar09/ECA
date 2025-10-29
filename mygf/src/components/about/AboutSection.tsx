@@ -1,6 +1,6 @@
 // mygf/src/components/about/AboutSection.tsx
 import React from "react";
-import NavBar from "../home/NavBar";
+import HtmlNavBar from "../common/HtmlNavBar";
 import Footer from "../common/Footer";
 import { Link } from "react-router-dom";
 
@@ -97,7 +97,7 @@ const AboutSection: React.FC = () => {
     <>
       {/* Full-bleed nav */}
       <div className="relative z-20">
-        <NavBar />
+        <HtmlNavBar />
       </div>
 
       {/* Spacer below fixed navbar */}

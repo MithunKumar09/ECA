@@ -1,7 +1,7 @@
 // mygf/src/components/screens/SignUp.tsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import NavBar from "../home/NavBar";
+import HtmlNavBar from "../common/HtmlNavBar";
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../auth/store';
 import { api } from '../../api/client';
@@ -125,7 +125,7 @@ const SignUp: React.FC = () => {
 
   return (
     <>
-      <NavBar />
+        <HtmlNavBar />
       <div
   className="relative flex items-center justify-center min-h-screen px-4
              pt-24 md:pt-28

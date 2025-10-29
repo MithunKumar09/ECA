@@ -1,7 +1,7 @@
 //mygf/src/components/screens/ForgotPassword.tsx
 import React, { useState } from 'react';
 import {api} from '../../api/client';
-import NavBar from "../home/NavBar";
+import HtmlNavBar from "../common/HtmlNavBar";
 import Footer from "../common/Footer";
 
 const AuthBackdrop: React.FC = () => (
@@ -29,7 +29,7 @@ const ForgotPassword = () => {
     <>
       {/* full-bleed navbar */}
       <div className="relative z-20">
-        <NavBar />
+        <HtmlNavBar />
       </div>
 
       <div className="relative min-h-[calc(100vh-64px)] flex items-center justify-center px-4 bg-gradient-to-b from-slate-50 via-sky-50 to-slate-100">

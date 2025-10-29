@@ -290,11 +290,15 @@ app.use("/api/admin", adminReviewRouter);
 app.use("/api/notes", notesRouter);
 app.use("/api/student/notes", studentNotesRouter);
 
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5004;
 
 connectMongo()
   .then(() => {
-    app.listen(PORT, () => { console.log("Server running on", PORT); startScheduler(); });
+    app.listen(PORT, () => { 
+      console.log("Server running on", PORT); 
+      startScheduler();
+      verifyMailer(); // Verify SMTP configuration on startup
+    });
   })
   .catch((err) => {
     console.error("[mongo] connection error:", err);

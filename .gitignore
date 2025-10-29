@@ -58,3 +58,4 @@ mygf/.netlify/
 # archives
 *.zip
 
+.vercel

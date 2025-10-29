@@ -164,7 +164,7 @@ export default function CoursesUnified() {
         <div className="md:col-span-2">
           <Label>Search</Label>
           <Input
-            placeholder="title, slug, category…"
+            placeholder="title, slug, program type…"
             value={filters.q}
             onChange={(e) => setFilters((s) => ({ ...s, q: e.target.value }))}
           />
@@ -206,7 +206,7 @@ export default function CoursesUnified() {
           <thead className="bg-slate-50 text-slate-600">
             <tr>
               <th className="text-left font-medium p-3">Title</th>
-              <th className="text-left font-medium p-3">Category</th>
+              <th className="text-left font-medium p-3">Program Type</th>
               <th className="text-left font-medium p-3">Price</th>
               {isSA && <th className="text-left font-medium p-3">Owner</th>}
               {isSA && <th className="text-left font-medium p-3">Org</th>}
@@ -248,7 +248,7 @@ export default function CoursesUnified() {
     )}
   </div>
                 </td>
-                <td className="p-3">{c.category || "—"}</td>
+                <td className="p-3">{c.programType || "—"}</td>
                 <td className="p-3">{formatINRFromPaise(c.price)}</td>
                 {isSA && <td className="p-3">{(c as any).ownerName || (c as any).ownerEmail || "—"}</td>}
                 {isSA && <td className="p-3">{(c as any).orgName || (c.orgId ? c.orgId : "Global")}</td>}

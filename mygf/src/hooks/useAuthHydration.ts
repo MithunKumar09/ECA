@@ -1,37 +1,29 @@
 // src/hooks/useAuthHydration.ts
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/store";
 import { checkSession } from "../api/auth";
 
 /**
- * Public routes: previously we avoided calling /auth/check unless we had a
- * localStorage hint. We've removed localStorage; instead we keep a volatile
- * in-memory hint in the auth store (`hadRefreshHint`) that's set after a
- * successful login in this tab. This preserves the old behaviour (no extra
- * 401s on fully public pages) without persisting anything to disk.
+ * Always check for existing session on page load to ensure session persistence
+ * across page reloads. This ensures users stay logged in when they refresh the page.
  */
-const PUBLIC_PREFIXES = ["/", "/home", "/login", "/signup", "/forgot-password", "/reset-password"];
-const isPublicPath = (pathname: string) =>
-  PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
-
 /** one-flight across the tab */
 let hydrationOnce = false;
 
 export function useAuthHydration() {
-  const { user, hadRefreshHint, setUser } = useAuth();
+  const { user, setUser } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { pathname } = useLocation();
 
   useEffect(() => {
     let cancelled = false;
 
-    // On private paths: always try once. On public paths: only if we have the hint.
-    const shouldPing = !user && (!isPublicPath(pathname) || hadRefreshHint);
+    // Always check for existing session on page load, regardless of path
+    // This ensures session persistence across page reloads
+    const shouldPing = !user && !hydrationOnce;
 
-    if (!shouldPing || hydrationOnce) {
-      // nothing to do; treat as hydrated for public pages
+    if (!shouldPing) {
+      // nothing to do; treat as hydrated
       setIsHydrated(true);
       return;
     }
@@ -56,7 +48,7 @@ export function useAuthHydration() {
     })();
 
     return () => { cancelled = true; };
-  }, [user, hadRefreshHint, pathname, setUser]);
+  }, [user, setUser]);
 
   return { user: user || null, isHydrated, isLoading };
 }

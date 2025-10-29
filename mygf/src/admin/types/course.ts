@@ -31,6 +31,7 @@ export interface Course {
   slug?: string
   description?: string
   category?: string
+  programType?: string           // NEW: required field
   price?: number                 // paise
   visibility?: CourseVisibility
   status: CourseStatus

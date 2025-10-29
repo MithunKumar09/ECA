@@ -32,5 +32,7 @@ r.post("/invitations/accept", ctrl.acceptInvite);
 r.get('/auth/precheck', ctrl.precheckEmail);
 r.post('/auth/signup-student', ctrl.signupStudent);
 r.post('/auth/signup', ctrl.signupStudent);
+r.post('/auth/forgot-password', ctrl.forgotPassword);
+r.post('/auth/reset-password', ctrl.resetPassword);
 
 export default r;

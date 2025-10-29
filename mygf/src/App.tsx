@@ -6,7 +6,7 @@ import ReminderPopup from "./components/notifications/ReminderPopup";
 
 // ---------- Public (student/user) screens ----------
 // import HomeSection from "./components/home/HomeSection";
-import HomeLanding from "./components/home/HomeLanding";
+// import HomeLanding from "./components/home/HomeLanding"; // DISCONNECTED: Now using static HTML
 import TracksAndCollectionsSection from "./components/pages/TracksAndCollectionsSection";
 import SignIn from "./components/screens/SignIn";
 import SignUp from "./components/screens/SignUp";
@@ -80,12 +80,12 @@ export default function App() {
   return (
     <NotificationsProvider>
     <Routes>
-      {/* Default landing should be /home */}
+      {/* Default route redirects to static HTML home page */}
       <Route path="/" element={<Navigate to="/home" replace />} />
-
-      {/* Public routes */}
-      {/* <Route path="/home" element={<HomeSection />} /> */}
-      <Route path="/home" element={<HomeLanding />} />
+      
+      {/* Home is served as static HTML - commented out React home route */}
+      {/* <Route path="/home" element={<HomeLanding />} /> */}
+      
       {/* ⬇️ Protected: orguser only. Other roles untouched. */}
 <Route path="/tracks" element={<TracksAndCollectionsSection />} />
 
@@ -198,7 +198,7 @@ export default function App() {
         <Route path="notes" element={<VENotes />} />
         </Route>
 
-      {/* Fallback */}
+      {/* Fallback - redirect to static HTML home */}
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
         <ReminderPopup />

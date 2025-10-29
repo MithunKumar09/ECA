@@ -26,6 +26,7 @@ function sanitize(doc) {
     slug: o.slug || null,
     description: o.description || null,
     category: o.category || null,
+    programType: o.programType || null,
     price: o.price ?? 0,
     visibility: o.visibility || "unlisted",
     status: o.status || "draft",
@@ -64,7 +65,7 @@ export async function list(req, res) {
 
   if (q) {
     const rx = { $regex: String(q), $options: "i" };
-    and.push({ $or: [{ title: rx }, { slug: rx }, { category: rx }, { description: rx }, { tags: rx }] });
+    and.push({ $or: [{ title: rx }, { slug: rx }, { category: rx }, { programType: rx }, { description: rx }, { tags: rx }] });
   }
   if (status !== "all") and.push({ status });
 
@@ -90,7 +91,7 @@ export async function create(req, res) {
   if (!actor?.orgId) return res.status(403).json({ ok: false, message: "No org" });
 
   const {
-    title, slug, description, category, price, visibility, status, tags, 
+    title, slug, description, category, programType, price, visibility, status, tags, 
     isBundled, chapters, demoVideoUrl, 
     // NEW 
     courseType, durationText, teacherId,
@@ -99,6 +100,7 @@ export async function create(req, res) {
   } = req.body || {};
 
   if (!title) return res.status(400).json({ ok: false, message: "title required" });
+  if (!programType) return res.status(400).json({ ok: false, message: "programType required" });
 
     let teacherObjectId = null; 
   if (teacherId) { 
@@ -112,6 +114,7 @@ export async function create(req, res) {
     slug,
     description,
     category,
+    programType,
     price: Number.isFinite(price) ? price : 0,
     visibility: visibility || "unlisted",
     status: status || "draft",
@@ -176,7 +179,7 @@ export async function patch(req, res) {
   const { id } = req.params;
 
   const baseAllow = [
-    "title", "slug", "description", "category", "price",
+    "title", "slug", "description", "category", "programType", "price",
     "visibility", "status", "tags", "isBundled", "chapters", "demoVideoUrl",
     "courseType", "durationText", "teacherId",
   ];
@@ -280,6 +283,7 @@ export async function bulkUpsert(req, res) {
         slug,
         description: r.description || null,
         category: r.category || null,
+        programType: r.programType || null,
         price: Number.isFinite(r.price) ? r.price : 0,
         visibility: ["public", "private", "unlisted"].includes(String(r.visibility || "").toLowerCase())
           ? String(r.visibility).toLowerCase()

@@ -19,8 +19,9 @@ export function setAuthCookies(req, res, { accessToken, refreshToken }) {
     sameSite = "lax";
   }
 
-  // Use __Host-* only when we can set Secure; in dev fallback to sid/sr so browser accepts them
-  const useHostPrefix = secure; // __Host-* is valid only with Secure + Path=/ and no Domain
+  // In development, always use non-Host prefixed cookies to avoid issues
+  const isDev = process.env.NODE_ENV !== "production";
+  const useHostPrefix = secure && !isDev; // __Host-* is valid only with Secure + Path=/ and no Domain
   const sessionName = useHostPrefix ? "__Host-session" : "sid";
   const refreshName = useHostPrefix ? "__Host-refresh" : "sr";
 
@@ -31,14 +32,29 @@ export function setAuthCookies(req, res, { accessToken, refreshToken }) {
     path: "/", // host-only cookie (no Domain) so it can qualify for __Host-* in prod
   };
 
+  // Debug logging for cookie setting
+  if (process.env.DEBUG_AUTH === "1") {
+    console.log("[cookies] Setting auth cookies:", {
+      viaHttps,
+      secure,
+      sameSite,
+      isDev,
+      useHostPrefix,
+      sessionName,
+      refreshName,
+      accessTokenLength: accessToken?.length || 0,
+      refreshTokenLength: refreshToken?.length || 0
+    });
+  }
+
   res.cookie(sessionName, accessToken, {
     ...base,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 15m
+    maxAge: 60 * 60 * 1000, // 1 hour (access token TTL)
   });
 
   res.cookie(refreshName, refreshToken, {
     ...base,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30d
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days (refresh token TTL)
   });
 
     // DEV-ONLY: mirror the access token into a readable cookie so the SPA can send Authorization 
@@ -49,7 +65,7 @@ export function setAuthCookies(req, res, { accessToken, refreshToken }) {
       secure: false,            // dev http/https both OK 
       sameSite: "lax", 
       path: "/", 
-      maxAge: 15 * 60 * 1000, 
+      maxAge: 60 * 60 * 1000, // 1 hour (access token TTL)
     }); 
   }
 }

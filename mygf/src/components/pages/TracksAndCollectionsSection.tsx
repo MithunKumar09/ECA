@@ -2,7 +2,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import type { Availability, Chip, Course, Level } from "./tracks/types";
-import NavBar from "../home/NavBar";
+import HtmlNavBar from "../common/HtmlNavBar";
 import useDebouncedValue from "./tracks/useDebouncedValue";
 import SearchBar from "./tracks/SearchBar";
 import FilterChips from "./tracks/FilterChips";
@@ -41,7 +41,7 @@ export default function TracksAndCollectionsSection() {
     return (
       <>
         <TopProgressBar active />
-        <div className="relative z-20"><NavBar /></div>
+        <div className="relative z-20"><HtmlNavBar /></div>
         <section className="relative isolate w-full overflow-hidden pt-[5.5rem] sm:pt-[6rem] md:pt-[7rem]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -52,7 +52,7 @@ export default function TracksAndCollectionsSection() {
             </div>
           </div>
         </section>
-        <Footer brandName="ECA Academy" tagline="Learn smarter. Build faster." />
+        {/* <Footer brandName="ECA Academy" tagline="Learn smarter. Build faster." /> */}
       </>
     );
   }
@@ -250,10 +250,25 @@ function TracksBody({ user }: { user: User }) {
       <TopProgressBar active={loading || prefetching} />
       {/* make the sticky NavBar full-bleed (not inside max-w) */}
       <div className="relative z-20">
-        <NavBar />
+        <HtmlNavBar />
       </div>
 
-      <section aria-labelledby="tracks-title" className="relative isolate w-full overflow-hidden pt-24 md:pt-28">
+      {/* Hero header: mimic classes.html black header */}
+      <section className="relative w-full overflow-hidden !p-0 !m-0" style={{ padding: 0, margin: 0 }}>
+        <div className="bg-black text-white">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 text-center">
+            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">Classes</h1>
+            <div className="mt-4 text-sm text-white/80">
+              <a href="/home" className="hover:text-white">Home</a>
+              <span className="mx-2">/</span>
+              <span>Classes</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Main content area */}
+      <section aria-labelledby="tracks-title" className="relative isolate w-full overflow-hidden !pt-0 !pb-6 !m-0" style={{ paddingTop: 0, margin: 0 }}>
         {/* abstract background */}
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,#9ae6b4,transparent)] blur-2xl opacity-60" />
@@ -262,12 +277,10 @@ function TracksBody({ user }: { user: User }) {
           <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_10%,rgba(255,255,255,0.7)_0%,rgba(255,255,255,0.3)_45%,rgba(255,255,255,0)_70%)]" />
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
-          <h2 id="tracks-title" className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900/95">
-            Browse Tracks &amp; Collections
-          </h2>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8" style={{ paddingTop: 0 }}>
+          <h2 id="tracks-title" className="sr-only">Browse Tracks &amp; Collections</h2>
 
-          <div className="mt-6">
+          <div className="mt-0">
             <SearchBar value={query} onChange={setQuery} />
           </div>
 
@@ -346,10 +359,10 @@ function TracksBody({ user }: { user: User }) {
           </div>
         </div>
               {/* Footer at the end */}
-      <Footer
+      {/* <Footer
         brandName="ECA Academy"
         tagline="Learn smarter. Build faster."
-      />
+      /> */}
       </section>
 
       {/* Back-to-top FAB (keeps your visual language) */}

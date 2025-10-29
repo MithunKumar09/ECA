@@ -44,9 +44,7 @@ export default defineConfig(({ command }) => {
       proxy.on(
         'proxyRes',
         (
-          proxyRes: import('node:http').IncomingMessage,
-          _req: import('node:http').IncomingMessage,
-          _res: import('node:http').ServerResponse
+          proxyRes: import('node:http').IncomingMessage
         ) => {
           const setCookie = proxyRes.headers['set-cookie'];
           if (Array.isArray(setCookie)) {
@@ -62,7 +60,22 @@ export default defineConfig(({ command }) => {
   };
 
   return {
-    plugins: [tailwindcss(), react()],
+    plugins: [
+      tailwindcss(), 
+      react(),
+      {
+        name: 'serve-static-home',
+        configureServer(server) {
+          // Serve static HTML for /home route
+          server.middlewares.use((req, _res, next) => {
+            if (req.url === '/home' || req.url === '/home/') {
+              req.url = '/static/home.html';
+            }
+            next();
+          });
+        }
+      }
+    ],
     server: {
       port: 5173,
       https: httpsCfg,
@@ -71,6 +84,6 @@ export default defineConfig(({ command }) => {
         '/csrf': proxyCommon,
       },
     },
-    // build options can go here as needed
+    publicDir: 'public',
   };
 });
