@@ -67,26 +67,37 @@ if (!allow.length && process.env.NODE_ENV !== "production") {
   allow = ["http://localhost:5173", "https://localhost:5173"];
 }
 
+// Log CORS configuration on startup (helpful for debugging)
+if (process.env.NODE_ENV === "production") {
+  console.log("[cors] Configured allowed origins:", allow.length > 0 ? allow.join(", ") : "⚠️ NONE - CORS will reject all requests! Set CORS_ORIGIN env var.");
+}
+
 const corsOptions = { 
   origin(origin, cb) { 
-    if (!origin) return cb(null, false);          // strict: reject requests without Origin
-    return cb(null, allow.includes(origin)); 
+    if (!origin) {
+      // Reject requests without Origin header in production
+      return cb(null, false);
+    }
+    
+    const isAllowed = allow.includes(origin);
+    if (!isAllowed && process.env.NODE_ENV === "production") {
+      console.warn(`[cors] Origin "${origin}" not in allowlist. Allowed: [${allow.join(", ")}]`);
+    }
+    return cb(null, isAllowed); 
   }, 
   credentials: true, 
   methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], 
+  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"],
+  exposedHeaders: ["ETag", "X-Data-Version"],
   optionsSuccessStatus: 204, 
-}; 
+  preflightContinue: false,
+};
 
 // Apply CORS to all routes
 app.use(cors(corsOptions));
 
-// Handle preflight requests explicitly (safe for Express 5)
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return cors(corsOptions)(req, res, () => res.sendStatus(204));
-  }
-  next();
-});
+// Explicit preflight handler for all routes (ensures OPTIONS are properly handled)
+app.options('*', cors(corsOptions));
 
 // Expose ETag and version headers to browsers
 app.use((req, res, next) => {
