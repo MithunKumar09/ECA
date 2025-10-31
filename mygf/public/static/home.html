@@ -599,6 +599,173 @@
     }
 }
 
+/* Modal Image Carousel Styles */
+.modal-image-carousel {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.modal-carousel-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-carousel-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.modal-carousel-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-carousel-slide.active {
+    opacity: 1;
+    position: relative;
+}
+
+.modal-carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.modal-carousel-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    color: #6c757d;
+}
+
+.modal-carousel-placeholder i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.modal-carousel-placeholder span {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.modal-carousel-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.modal-carousel-nav:hover {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.modal-carousel-nav.prev {
+    left: 10px;
+}
+
+.modal-carousel-nav.next {
+    right: 10px;
+}
+
+.modal-carousel-nav i {
+    color: #d32f2f;
+    font-size: 18px;
+}
+
+.modal-carousel-dots {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.modal-carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.modal-carousel-dot.active {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.2);
+}
+
+.modal-carousel-dot:hover {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 768px) {
+    .modal-carousel-nav {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .modal-carousel-nav i {
+        font-size: 14px;
+    }
+    
+    .modal-carousel-nav.prev {
+        left: 5px;
+    }
+    
+    .modal-carousel-nav.next {
+        right: 5px;
+    }
+    
+    .modal-carousel-placeholder i {
+        font-size: 36px;
+    }
+    
+    .modal-carousel-placeholder span {
+        font-size: 12px;
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .program-modal.show {
@@ -676,6 +843,11 @@
     
     .modal-pending-text {
         font-size: 16px;
+    }
+    
+    /* Hide expand/collapse arrow icon on mobile view */
+    .modal-header-arrow {
+        display: none !important;
     }
     
     .modal-share-btn {
@@ -762,6 +934,11 @@
     }
     .banner_slider .carousel-item:first-child .banner_content h2 {
         text-align: center;
+        font-size: 32px !important;
+    }
+    /* Make the second line slightly smaller on mobile */
+    .banner_slider .carousel-item:first-child .banner_content h2 .foundation-title {
+        font-size: 26px !important;
     }
     .banner_slider .carousel-item:first-child .banner_content > p {
         font-size: 14px !important;
@@ -860,21 +1037,36 @@
     }
 }
 
-/* Reduce border frame height for about section guruji image */
+/* About section guruji image - remove border frame and add background image */
 .bg_gray .about_img .border_img {
     max-height: 500px;
     overflow: hidden;
+    background-image: url('/static/assets/images/benifits_img_bg.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+    padding: 20px;
+}
+
+/* Hide border frame pseudo-elements for about section */
+.bg_gray .about_img .border_img::before,
+.bg_gray .about_img .border_img::after {
+    display: none !important;
 }
 
 .bg_gray .about_img .border_img img {
     max-height: 450px;
     width: auto;
     object-fit: contain;
+    position: relative;
+    z-index: 1;
 }
 
 @media (max-width: 768px) {
     .bg_gray .about_img .border_img {
         max-height: 400px;
+        padding: 15px;
     }
     
     .bg_gray .about_img .border_img img {
@@ -885,6 +1077,7 @@
 @media (max-width: 576px) {
     .bg_gray .about_img .border_img {
         max-height: 350px;
+        padding: 10px;
     }
     
     .bg_gray .about_img .border_img img {
@@ -927,6 +1120,61 @@
     
     .banner_img .border_img img {
         max-height: 320px;
+    }
+}
+
+/* Pattern background layer for first slider Guruji image - positioned only behind Guruji image */
+.banner_slider .carousel-item:first-child .guruji-pattern-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    opacity: 0.35;
+    overflow: hidden;
+}
+
+.banner_slider .carousel-item:first-child .guruji-pattern-bg img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 450px;
+    object-fit: contain;
+    object-position: left center;
+    position: relative;
+    display: block;
+}
+
+/* Ensure Guruji image is above pattern */
+.banner_slider .carousel-item:first-child .animation.border_img img[src*="Guruji"] {
+    position: relative;
+    z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .banner_slider .carousel-item:first-child .guruji-pattern-bg {
+        opacity: 0.3;
+    }
+    
+    .banner_slider .carousel-item:first-child .guruji-pattern-bg img {
+        max-height: 360px;
+    }
+}
+
+@media (max-width: 576px) {
+    .banner_slider .carousel-item:first-child .guruji-pattern-bg {
+        opacity: 0.25;
+        justify-content: center;
+    }
+    
+    .banner_slider .carousel-item:first-child .guruji-pattern-bg img {
+        max-height: 320px;
+        object-position: center;
     }
 }
 
@@ -992,6 +1240,175 @@
     .banner_img2 img:not(.border_img),
     .banner_img3 img:not(.border_img) {
         max-height: 220px;
+    }
+}
+
+/* Child Carousel Styles for Sliders 2-8 */
+.child-carousel-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f8f9fa;
+    min-height: 0;
+}
+
+/* Prevent wrapper styles from affecting child carousel */
+.banner_img2 .child-carousel-container,
+.banner_img3 .child-carousel-container {
+    width: 100% !important;
+    min-height: 0 !important;
+}
+
+/* Override min-width from responsive.css that causes bouncing */
+.banner_img2,
+.banner_img3 {
+    min-width: auto !important;
+}
+
+/* Override banner_img2/3 styles for child carousel images */
+.banner_img2 .child-carousel-container img,
+.banner_img3 .child-carousel-container img {
+    max-height: none !important;
+    height: 100% !important;
+    width: 100% !important;
+    object-fit: cover !important;
+    position: relative !important;
+    margin: 0 !important;
+}
+
+.child-carousel-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.child-carousel-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    will-change: opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+.child-carousel-slide.active {
+    opacity: 1;
+}
+
+.child-carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    position: relative;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.child-carousel-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.child-carousel-nav:hover {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.child-carousel-nav.prev {
+    left: 10px;
+}
+
+.child-carousel-nav.next {
+    right: 10px;
+}
+
+.child-carousel-nav i {
+    color: #d32f2f;
+    font-size: 18px;
+}
+
+.child-carousel-dots {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.child-carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.child-carousel-dot.active {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.2);
+}
+
+.child-carousel-dot:hover {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 768px) {
+    .child-carousel-nav {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .child-carousel-nav i {
+        font-size: 14px;
+    }
+    
+    .child-carousel-nav.prev {
+        left: 5px;
+    }
+    
+    .child-carousel-nav.next {
+        right: 5px;
+    }
+}
+
+/* Additional mobile fixes to prevent bouncing */
+@media (max-width: 768px) {
+    .child-carousel-container {
+        min-height: 0 !important;
+    }
+    
+    .banner_img2,
+    .banner_img3 {
+        min-width: auto !important;
     }
 }
 </style>
@@ -1134,8 +1551,12 @@
                         <div class="row justify-content-end align-items-center">
                         	<div class="col-xl-6 col-md-5">
 								<div class="banner_img text-center" style="position: relative; overflow: visible;">
-                                    <div class="animation border_img" data-animation="fadeInLeft" data-animation-delay="0.5s" style="display: flex; justify-content: flex-start; align-items: center; width: 100%; padding-left: 5%;">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Guruji.png" alt="image" style="display: block; max-width: 100%; height: auto;"/>
+                                    <div class="animation border_img" data-animation="fadeInLeft" data-animation-delay="0.5s" style="display: flex; justify-content: flex-start; align-items: center; width: 100%; padding-left: 5%; position: relative;">
+                                        <!-- Pattern background layer for first slider - inside Guruji image container -->
+                                        <div class="guruji-pattern-bg">
+                                            <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/slider_pattern6.png" alt="pattern background" />
+                                        </div>
+                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Guruji.png" alt="image" style="display: block; max-width: 100%; height: auto; position: relative; z-index: 1;"/>
                                     </div>
                                     <div class="circle_bg1">
                                         <span></span>
@@ -1151,7 +1572,7 @@
                             </div>
                             <div class="col-xl-6 col-md-7">
                                 <div class="banner_content animation" data-animation="zoomIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 40px; line-height: 1.2;">M.Y. GANGOOR<br>GLOBAL FOUNDATION'S®</h2>
+                                    <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 40px; line-height: 1.2;">M.Y. GANGOOR<br><span class="foundation-title">GLOBAL FOUNDATION'S®</span></h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s" style="font-weight: bold; font-size: 18px; margin: 10px 0;">Multi-Sciences Education & Research centre</p>
                                     <ul class="list_none countries_list animation" data-animation="fadeInUp" data-animation-delay="0.65s" style="display: flex; flex-wrap: wrap; gap: 15px 25px; margin: 20px 0; padding: 15px; border: 1px solid #e0e0e0; border-radius: 4px; background: rgba(255,255,255,0.5);">
                                         <li style="display: flex; align-items: center; font-size: 14px; font-weight: 500;">
@@ -1205,14 +1626,38 @@
                         <div class="row align-items-center">
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img2 text-center">
-                                    <div class="animation border_img" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Reiki.png" alt="image"/>
+                                    <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="2">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/Reiki.png" alt="Reiki Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/banner_img2.png" alt="Reiki Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Third Eye Activation.png" alt="Reiki Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(2, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(2, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(2, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(2, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(2, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Reiki</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Reiki</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 36px; line-height: 1.2;">Awaken The Power Within</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Discover the ancient Indian spiritual sciences like Reiki that bridge energy, mind, and nature for complete well-being. Join our global training programs and become a channel of light, healing, and higher consciousness.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -1242,13 +1687,37 @@
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img3 text-center">
                                     <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Third Eye Activation.png" alt="image"/>
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="3">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/Third Eye Activation.png" alt="Third Eye Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Vastushastra.png" alt="Third Eye Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Dowsing.png" alt="Third Eye Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(3, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(3, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(3, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(3, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(3, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Third Eye</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Third Eye</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 32px; line-height: 1.2;">Unlock the Vision Beyond—Activate Your Third EyeAppeal</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Awaken your intuitive wisdom and access higher realms of consciousness with our comprehensive Third Eye Activation training. Join our course globally and transform your perception, clarity, and spiritual insight through ancient techniques guided by M.Y. Gangoor International Foundation.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -1282,14 +1751,38 @@
                         <div class="row align-items-center">
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img2 text-center">
-                                    <div class="animation border_img" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Hypnosis.jpg" alt="image"/>
+                                    <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="4">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/Hypnosis.jpg" alt="Hypnosis Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Yogshatra.jpg" alt="Hypnosis Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Natropathy.png" alt="Hypnosis Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(4, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(4, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(4, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(4, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(4, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Hypnosis</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Hypnosis</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 32px; line-height: 1.2;">Harness the Power of Your Subconscious Mind Through Hypnosis</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Unlock deep subconscious potential to overcome barriers, change habits, and achieve mental clarity with our expert-led Hypnosis training. Join our global course at M.Y. Gangoor International Foundation and master the transformative art of guided healing and personal empowerment.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -1319,13 +1812,37 @@
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img3 text-center">
                                     <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Vastushastra.png" alt="image"/>
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="5">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/Vastushastra.png" alt="Vastu Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Yogshatra.jpg" alt="Vastu Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/banner_img2.png" alt="Vastu Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(5, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(5, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(5, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(5, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(5, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Vastushastra</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Vastushastra</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 32px; line-height: 1.2;">Harmonize Your Space, Elevate Your Life with Vastushastra</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Discover the ancient science of Vastushastra to design and balance your living and working spaces for prosperity, health, and happiness. Join our global training at M.Y. Gangoor International Foundation and unlock the power of spatial energy alignment for holistic well-being.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -1359,14 +1876,38 @@
                         <div class="row align-items-center">
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img2 text-center">
-                                    <div class="animation border_img" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Yogshatra.jpg" alt="image"/>
+                                    <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="6">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/Yogshatra.jpg" alt="Yogashastra Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Reiki.png" alt="Yogashastra Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Hypnosis.jpg" alt="Yogashastra Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(6, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(6, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(6, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(6, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(6, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Yogashastra</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Yogashastra</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 32px; line-height: 1.2;">Unite Body, Mind, and Spirit with Yogashastra</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Embark on a transformative journey through the ancient science of Yogashastra to achieve harmony, strength, and spiritual growth. Join M.Y. Gangoor International Foundation's global training and master timeless practices that nurture well-being and elevate consciousness.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -1396,13 +1937,37 @@
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img3 text-center">
                                     <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Dowsing.png" alt="image"/>
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="7">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/Dowsing.png" alt="Dowsing Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Vastushastra.png" alt="Dowsing Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Third Eye Activation.png" alt="Dowsing Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(7, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(7, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(7, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(7, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(7, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Dowsing</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Dowsing</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 32px; line-height: 1.2;">Discover Hidden Energies with Dowsing Mastery</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Unlock the ancient art of dowsing to detect and balance unseen energies in your environment and life. Join the global course at M.Y. Gangoor International Foundation and develop intuitive skills that enhance your connection to Earth's subtle energies for healing and harmony.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -1436,14 +2001,38 @@
                         <div class="row align-items-center">
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img2 text-center">
-                                    <div class="animation border_img" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/banner_img2.png" alt="image"/>
+                                    <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="8">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/banner_img2.png" alt="Astrology Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Reiki.png" alt="Astrology Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Yogshatra.jpg" alt="Astrology Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(8, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(8, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(8, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(8, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(8, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Astrology, Palmestry & Numerology</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Astrology, Palmestry & Numerology</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 32px; line-height: 1.2;">Decode the Cosmic Blueprint. Master Astrology, Palmistry & NumerologyAppeal</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Explore the ancient sciences that reveal your destiny through the Stars, your Palms, and Numbers. Join the global training at M.Y. Gangoor International Foundation to gain deep insights into personality, life purpose, and future.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -1473,13 +2062,37 @@
                             <div class="col-lg-6 col-md-5">
                                 <div class="banner_img3 text-center">
                                     <div class="animation" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                        <img data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/Natropathy.png" alt="image"/>
+                                        <!-- Child Carousel Container -->
+                                        <div class="child-carousel-container" data-carousel-index="9">
+                                            <div class="child-carousel-track">
+                                                <div class="child-carousel-slide active">
+                                                    <img src="/static/assets/images/Natropathy.png" alt="Naturopathy Image 1"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/Dowsing.png" alt="Naturopathy Image 2"/>
+                                                </div>
+                                                <div class="child-carousel-slide">
+                                                    <img src="/static/assets/images/banner_img2.png" alt="Naturopathy Image 3"/>
+                                                </div>
+                                            </div>
+                                            <button class="child-carousel-nav prev" onclick="navigateChildCarousel(9, 'prev')">
+                                                <i class="ion-chevron-left"></i>
+                                            </button>
+                                            <button class="child-carousel-nav next" onclick="navigateChildCarousel(9, 'next')">
+                                                <i class="ion-chevron-right"></i>
+                                            </button>
+                                            <div class="child-carousel-dots">
+                                                <button class="child-carousel-dot active" onclick="goToChildCarouselSlide(9, 0)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(9, 1)"></button>
+                                                <button class="child-carousel-dot" onclick="goToChildCarouselSlide(9, 2)"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6 col-md-7 order-md-first">
                                 <div class="banner_content animation" data-animation="fadeIn" data-animation-delay="0.4s" data-parallax='{"y": 30, "smoothness": 10}'>
-                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 12px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Naturopathy</span>
+                                    <span class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 16px; color: #d32f2f; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Naturopathy</span>
                                     <h2 class="animation" data-animation="fadeInDown" data-animation-delay="0.5s" style="font-size: 32px; line-height: 1.2;">Heal Naturally, Live Vibrantly with Naturopathy</h2>
                                     <p class="animation" data-animation="fadeInUp" data-animation-delay="0.6s">Discover the power of nature and holistic healing to restore balance, boost immunity, and enhance well-being. Join M.Y. Gangoor International Foundation's global naturopathy course and learn time-tested natural therapies for a healthier, harmonious life.</p>
                                     <a class="btn btn-default rounded-0 animation" href="#" data-animation="fadeInUp" data-animation-delay="0.7s">Learn More</a>
@@ -2725,9 +3338,25 @@
                 <div class="container">
                     <div class="row align-items-center">
                         <div class="col-lg-6 col-md-5">
-                            <div class="banner_img2 text-center" style="max-width: 50%; margin: 0 auto; padding: 20px 0;">
-                                <div class="animation border_img" data-animation="fadeInRight" data-animation-delay="0.5s">
-                                    <img id="modalProgramImage" data-parallax='{"y": -30, "smoothness": 20}' src="/static/assets/images/banner_img2.png" alt="image" style="max-width: 100%; height: auto; object-fit: contain; max-height: 250px;"/>
+                            <div class="modal-image-carousel">
+                                <!-- Carousel Container -->
+                                <div class="modal-carousel-container">
+                                    <div class="modal-carousel-track" id="modalCarouselTrack">
+                                        <!-- Slides will be dynamically added here -->
+                                    </div>
+                                    
+                                    <!-- Navigation Arrows -->
+                                    <button class="modal-carousel-nav prev" onclick="navigateCarousel('prev')" id="carouselPrevBtn" style="display: none;">
+                                        <i class="ion-chevron-left"></i>
+                                    </button>
+                                    <button class="modal-carousel-nav next" onclick="navigateCarousel('next')" id="carouselNextBtn" style="display: none;">
+                                        <i class="ion-chevron-right"></i>
+                                    </button>
+                                    
+                                    <!-- Dots Indicator -->
+                                    <div class="modal-carousel-dots" id="modalCarouselDots">
+                                        <!-- Dots will be dynamically added here -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2800,6 +3429,7 @@ const programs = {
         headerTitle: 'Awaken The Power Within',
         headerDescription: 'Discover the ancient Indian spiritual sciences like Reiki that bridge energy, mind, and nature for complete well-being. Join our global training programs and become a channel of light, healing, and higher consciousness.',
         image: '/static/assets/images/Reiki.png',
+        images: ['/static/assets/images/Reiki.png', '/static/assets/images/banner_img2.png', '/static/assets/images/Third Eye Activation.png'],
         content: `
             <div class="program-section">
                 <h4><i class="fas fa-book-open"></i>Short Introduction</h4>
@@ -2936,6 +3566,7 @@ const programs = {
         headerTitle: 'Master The Art of Energy Detection',
         headerDescription: 'Discover the ancient skill of sensing subtle energies to find answers, objects, and healing pathways. Learn to use tools like pendulums and rods to detect energy fields and connect with your intuition.',
         image: '/static/assets/images/Dowsing.png',
+        images: ['/static/assets/images/Dowsing.png', '/static/assets/images/banner_img2.png'],
         content: `
             <div class="program-section">
                 <h4><i class="fas fa-book-open"></i>Short Introduction</h4>
@@ -3039,6 +3670,7 @@ const programs = {
         headerTitle: 'Integrative Wisdom of Ages',
         headerDescription: 'Explore the profound connection between Jyotish (Astrology), Hast Rekha Vidya (Palmistry), and Sankhya Vidya (Numerology). Master three powerful sciences for personal insight and professional guidance.',
         image: '/static/assets/images/Third Eye Activation.png',
+        images: ['/static/assets/images/Third Eye Activation.png', '/static/assets/images/Vastushastra.png', '/static/assets/images/Dowsing.png'],
         content: `
             <div class="program-section">
                 <h4><i class="fas fa-book-open"></i>Brief Overview</h4>
@@ -3177,6 +3809,7 @@ const programs = {
         headerTitle: 'Transform Mind, Body & Spirit',
         headerDescription: 'Combine ancient yogic wisdom with modern life coaching techniques. Learn to guide others toward physical wellbeing, emotional balance, and purposeful living through this integrated approach.',
         image: '/static/assets/images/Yogshatra.jpg',
+        images: ['/static/assets/images/Yogshatra.jpg'],
         content: `
             <div class="program-section">
                 <h4><i class="fas fa-book-open"></i>What Is Yogshastra and Life Coaching</h4>
@@ -3262,6 +3895,7 @@ const programs = {
         headerTitle: 'Create Harmony in Your Space',
         headerDescription: 'Discover the ancient Indian science of architecture and spatial harmony. Learn to align your living and working spaces with natural energies for wellbeing, prosperity, and clarity.',
         image: '/static/assets/images/Vastushastra.png',
+        images: ['/static/assets/images/Vastushastra.png', '/static/assets/images/Yogshatra.jpg'],
         content: `
             <div class="program-section">
                 <h4><i class="fas fa-book-open"></i>Brief Introduction</h4>
@@ -3372,9 +4006,14 @@ const programs = {
         subtitle: 'Naturopathy',
         headerTitle: 'Heal Naturally, Live Vibrantly',
         headerDescription: 'Discover the power of nature and holistic healing to restore balance, boost immunity, and enhance well-being. Learn natural healing methods for complete wellness.',
-        image: '/static/assets/images/Natropathy.png'
+        image: '/static/assets/images/Natropathy.png',
+        images: ['/static/assets/images/Natropathy.png']
     }
 };
+
+// Carousel state management
+let currentCarouselIndex = 0;
+let carouselImages = [];
 
 // Function to open modal
 function openProgramModal(programKey) {
@@ -3383,7 +4022,6 @@ function openProgramModal(programKey) {
     const headerSubtitle = document.getElementById('modalHeaderSubtitle');
     const headerTitle = document.getElementById('modalHeaderTitle');
     const headerDescription = document.getElementById('modalHeaderDescription');
-    const programImage = document.getElementById('modalProgramImage');
     const programDetails = document.getElementById('modalProgramDetails');
     const shareDropdown = document.getElementById('shareOptionsDropdown');
     
@@ -3404,8 +4042,9 @@ function openProgramModal(programKey) {
         headerTitle.textContent = programs[programKey].headerTitle;
         headerDescription.textContent = programs[programKey].headerDescription;
         
-        // Update program image
-        programImage.src = programs[programKey].image;
+        // Initialize carousel with images
+        const images = programs[programKey].images || [programs[programKey].image];
+        initializeCarousel(images);
         
         // Update program details
         if (programs[programKey].content) {
@@ -3449,6 +4088,164 @@ function closeProgramModal() {
     currentShareProgramKey = null;
 }
 
+// Initialize carousel with images
+function initializeCarousel(images) {
+    carouselImages = images || [];
+    currentCarouselIndex = 0;
+    
+    const track = document.getElementById('modalCarouselTrack');
+    const dots = document.getElementById('modalCarouselDots');
+    const prevBtn = document.getElementById('carouselPrevBtn');
+    const nextBtn = document.getElementById('carouselNextBtn');
+    
+    if (!track || !dots || !prevBtn || !nextBtn) {
+        return;
+    }
+    
+    // Clear existing content
+    track.innerHTML = '';
+    dots.innerHTML = '';
+    
+    // If no images or empty array, show placeholder
+    if (!carouselImages.length || carouselImages.every(img => !img)) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'modal-carousel-slide active';
+        placeholder.innerHTML = `
+            <div class="modal-carousel-placeholder">
+                <i class="fas fa-image"></i>
+                <span>No Image Available</span>
+            </div>
+        `;
+        track.appendChild(placeholder);
+        
+        // Hide navigation
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+        return;
+    }
+    
+    // Filter out null/empty images
+    const validImages = carouselImages.filter(img => img && img.trim() !== '');
+    
+    if (validImages.length === 0) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'modal-carousel-slide active';
+        placeholder.innerHTML = `
+            <div class="modal-carousel-placeholder">
+                <i class="fas fa-image"></i>
+                <span>No Image Available</span>
+            </div>
+        `;
+        track.appendChild(placeholder);
+        
+        // Hide navigation
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+        return;
+    }
+    
+    // Create slides for each image
+    validImages.forEach((imageSrc, index) => {
+        const slide = document.createElement('div');
+        slide.className = 'modal-carousel-slide';
+        if (index === 0) {
+            slide.classList.add('active');
+        }
+        
+        const img = document.createElement('img');
+        img.src = imageSrc;
+        img.alt = `Program image ${index + 1}`;
+        img.onerror = function() {
+            // If image fails to load, replace with placeholder
+            this.onerror = null;
+            this.src = '';
+            slide.innerHTML = `
+                <div class="modal-carousel-placeholder">
+                    <i class="fas fa-image"></i>
+                    <span>Image Not Found</span>
+                </div>
+            `;
+        };
+        
+        slide.appendChild(img);
+        track.appendChild(slide);
+        
+        // Create dot indicator
+        const dot = document.createElement('button');
+        dot.className = 'modal-carousel-dot';
+        if (index === 0) {
+            dot.classList.add('active');
+        }
+        dot.setAttribute('onclick', `goToCarouselSlide(${index})`);
+        dots.appendChild(dot);
+    });
+    
+    // Show/hide navigation based on image count
+    if (validImages.length > 1) {
+        prevBtn.style.display = 'flex';
+        nextBtn.style.display = 'flex';
+        updateCarouselNavigation();
+    } else {
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+    }
+}
+
+// Navigate carousel (prev/next)
+function navigateCarousel(direction) {
+    if (!carouselImages || carouselImages.length === 0) return;
+    
+    const validImages = carouselImages.filter(img => img && img.trim() !== '');
+    if (validImages.length <= 1) return;
+    
+    if (direction === 'next') {
+        currentCarouselIndex = (currentCarouselIndex + 1) % validImages.length;
+    } else if (direction === 'prev') {
+        currentCarouselIndex = (currentCarouselIndex - 1 + validImages.length) % validImages.length;
+    }
+    
+    updateCarouselSlides();
+    updateCarouselNavigation();
+}
+
+// Go to specific slide
+function goToCarouselSlide(index) {
+    if (!carouselImages || carouselImages.length === 0) return;
+    
+    const validImages = carouselImages.filter(img => img && img.trim() !== '');
+    if (index >= 0 && index < validImages.length) {
+        currentCarouselIndex = index;
+        updateCarouselSlides();
+        updateCarouselNavigation();
+    }
+}
+
+// Update carousel slides visibility
+function updateCarouselSlides() {
+    const slides = document.querySelectorAll('.modal-carousel-slide');
+    slides.forEach((slide, index) => {
+        slide.classList.remove('active');
+        if (index === currentCarouselIndex) {
+            slide.classList.add('active');
+        }
+    });
+    
+    // Update dots
+    const dots = document.querySelectorAll('.modal-carousel-dot');
+    dots.forEach((dot, index) => {
+        dot.classList.remove('active');
+        if (index === currentCarouselIndex) {
+            dot.classList.add('active');
+        }
+    });
+}
+
+// Update carousel navigation buttons state
+function updateCarouselNavigation() {
+    const validImages = carouselImages.filter(img => img && img.trim() !== '');
+    // Navigation buttons are always enabled, but could add disabled state logic here if needed
+}
+
 // Close modal when clicking outside
 document.getElementById('programModal').addEventListener('click', function(e) {
     if (e.target === this) {
@@ -3468,6 +4265,70 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+// Child Carousel Functions for Hero Section Sliders 2-8
+const childCarouselStates = {};
+
+function navigateChildCarousel(carouselIndex, direction) {
+    if (!childCarouselStates[carouselIndex]) {
+        childCarouselStates[carouselIndex] = { currentIndex: 0 };
+    }
+    
+    const container = document.querySelector(`[data-carousel-index="${carouselIndex}"]`);
+    if (!container) return;
+    
+    const slides = container.querySelectorAll('.child-carousel-slide');
+    if (slides.length <= 1) return;
+    
+    if (direction === 'next') {
+        childCarouselStates[carouselIndex].currentIndex = (childCarouselStates[carouselIndex].currentIndex + 1) % slides.length;
+    } else if (direction === 'prev') {
+        childCarouselStates[carouselIndex].currentIndex = (childCarouselStates[carouselIndex].currentIndex - 1 + slides.length) % slides.length;
+    }
+    
+    updateChildCarouselSlides(carouselIndex);
+}
+
+function goToChildCarouselSlide(carouselIndex, slideIndex) {
+    const container = document.querySelector(`[data-carousel-index="${carouselIndex}"]`);
+    if (!container) return;
+    
+    const slides = container.querySelectorAll('.child-carousel-slide');
+    if (slideIndex >= 0 && slideIndex < slides.length) {
+        if (!childCarouselStates[carouselIndex]) {
+            childCarouselStates[carouselIndex] = { currentIndex: 0 };
+        }
+        childCarouselStates[carouselIndex].currentIndex = slideIndex;
+        updateChildCarouselSlides(carouselIndex);
+    }
+}
+
+function updateChildCarouselSlides(carouselIndex) {
+    if (!childCarouselStates[carouselIndex]) return;
+    
+    const container = document.querySelector(`[data-carousel-index="${carouselIndex}"]`);
+    if (!container) return;
+    
+    const slides = container.querySelectorAll('.child-carousel-slide');
+    const dots = container.querySelectorAll('.child-carousel-dot');
+    const currentIndex = childCarouselStates[carouselIndex].currentIndex;
+    
+    slides.forEach((slide, index) => {
+        if (index === currentIndex) {
+            slide.classList.add('active');
+        } else {
+            slide.classList.remove('active');
+        }
+    });
+    
+    dots.forEach((dot, index) => {
+        if (index === currentIndex) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+}
 
 // Function to scroll to modal content with header expansion/collapse toggle
 function scrollToModalContent() {
