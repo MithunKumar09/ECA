@@ -1,5 +1,64 @@
 @import "tailwindcss";
 
+/* Restore original font styles and alignment after Tailwind's base reset */
+/* This prevents Tailwind from overriding existing React component styles */
+/* Matching the original styles from /static/assets/css/style.css */
+
+/* Restore body styles that were reset by Tailwind */
+body {
+  background: #ffffff none repeat scroll 0 0;
+  color: #636363;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  line-height: 26px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Restore heading styles */
+h1, h2, h3, h4, h5, h6 {
+  color: #333333;
+  font-family: 'Oswald', sans-serif;
+  text-align: left; /* Headings should be left-aligned by default */
+}
+
+/* Restore paragraph styles */
+p {
+  color: #636363;
+  line-height: 26px;
+}
+
+/* Fix alignment issues - Tailwind base reset may override text-align */
+/* Restore natural text alignment defaults */
+#root {
+  text-align: initial;
+}
+
+/* Ensure form elements and labels are left-aligned by default */
+label,
+input,
+textarea,
+select {
+  text-align: left;
+}
+
+/* Buttons should center their text by default (standard behavior) */
+button {
+  text-align: center;
+}
+
+/* Preserve center alignment for elements that explicitly use it (Tailwind utility classes) */
+.text-center,
+[class*="text-center"] {
+  text-align: center !important;
+}
+
+/* Ensure paragraph and div elements respect their context alignment */
+p, div {
+  text-align: inherit;
+}
+
 html, body {
   overflow-x: hidden;
 }

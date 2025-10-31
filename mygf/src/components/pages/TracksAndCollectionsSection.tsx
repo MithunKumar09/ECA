@@ -246,8 +246,8 @@ function TracksBody({ user }: { user?: User }) {
       {/* Hero header: mimic /tracks black header */}
       <section className="relative w-full overflow-hidden !p-0 !m-0" style={{ padding: 0, margin: 0 }}>
         <div className="bg-black text-white">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 text-center">
-            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">Classes</h1>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 sm:py-28 text-center">
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-center" style={{ fontFamily: "'Oswald', sans-serif", letterSpacing: '-0.03em', fontWeight: 900 }}>Classes</h1>
             <div className="mt-4 text-sm text-white/80">
               <a href="/home" className="hover:text-white">Home</a>
               <span className="mx-2">/</span>

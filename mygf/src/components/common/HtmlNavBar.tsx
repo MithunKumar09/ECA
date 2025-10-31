@@ -101,6 +101,74 @@ export default function HtmlNavBar() {
     <style>{`
       .header_wrap .navbar-brand img { height: 48px; width: auto; }
       @media (max-width: 576px) { .header_wrap .navbar-brand img { height: 38px; } }
+      
+      /* Ensure navbar items are visible */
+      .header_wrap.dark_skin .navbar-nav > li > .nav-link,
+      .header_wrap.dark_skin .navbar-nav > li > a {
+        color: #DB9EC3 !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+      
+      .header_wrap.dark_skin .navbar-nav > li > .nav-link:hover,
+      .header_wrap.dark_skin .navbar-nav > li > a:hover,
+      .header_wrap.dark_skin .navbar-nav > li > .nav-link.active,
+      .header_wrap.dark_skin .navbar-nav > li > a.active {
+        color: #DB9EC3 !important;
+        opacity: 1 !important;
+      }
+      
+      .header_wrap .navbar-nav {
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      
+      .header_wrap .navbar-nav > li {
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      
+      /* Ensure dropdown menu items are visible */
+      .header_wrap.dark_skin .navbar-nav .dropdown-menu .nav-link,
+      .header_wrap.dark_skin .navbar-nav .dropdown-menu .dropdown-item,
+      .header_wrap.dark_skin .navbar-nav .dropdown-menu a {
+        color: #333333 !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      
+      .header_wrap.dark_skin .navbar-nav .dropdown-menu .nav-link:hover,
+      .header_wrap.dark_skin .navbar-nav .dropdown-menu .dropdown-item:hover,
+      .header_wrap.dark_skin .navbar-nav .dropdown-menu a:hover {
+        color: #d32f2f !important;
+      }
+      
+      /* Ensure navbar toggler is visible */
+      .header_wrap .navbar-toggler {
+        color: #000000 !important;
+        border-color: rgba(0, 0, 0, 0.3) !important;
+      }
+      
+      .header_wrap .navbar-toggler .ion-android-menu {
+        color: #000000 !important;
+      }
+      
+      /* Ensure dashboard icon is visible */
+      .header_wrap .attr-nav .nav-link.dashboard {
+        color: #000000 !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      
+      .header_wrap .attr-nav .nav-link.dashboard:hover {
+        color: #000000 !important;
+        opacity: 0.8 !important;
+      }
+      
+      .header_wrap .attr-nav .nav-link.dashboard i {
+        color: #000000 !important;
+        visibility: visible !important;
+      }
     `}</style>
     <header className="header_wrap fixed-top dark_skin main_menu_uppercase main_menu_weight_600 transparent_header">
       <div className="container">
@@ -126,86 +194,16 @@ export default function HtmlNavBar() {
                 <div className="dropdown-menu">
                   <ul> 
                     <li><a className="dropdown-item nav-link nav_item" href="/static/about.html">About Us</a></li>
-                    <li><a className="dropdown-item nav-link nav_item dropdown-toggler" href="#">Team</a>
-                      <div className="dropdown-menu">
-                        <ul> 
-                          <li><a className="dropdown-item nav-link nav_item" href="/static//static/team.html">Team</a></li>
-                          <li><a className="dropdown-item nav-link nav_item" href="/static/team-single.html">Team Single</a></li>
-                        </ul>
-                      </div>
-                    </li>
-                    <li><a className="dropdown-item nav-link nav_item dropdown-toggler" href="#">Classes</a>
-                      <div className="dropdown-menu">
-                        <ul> 
-                          <li><a className="dropdown-item nav-link nav_item" href="/tracks" onClick={(e) => { e.preventDefault(); navigate("/tracks"); }}>All Classes</a></li>
-                          <li><a className="dropdown-item nav-link nav_item" href="/static/classes-details.html">Classes Details</a></li>
-                        </ul>
-                      </div>
-                    </li>
-                    <li><a className="dropdown-item nav-link nav_item dropdown-toggler" href="#">Events</a>
-                      <div className="dropdown-menu">
-                        <ul> 
-                          <li><a className="dropdown-item nav-link nav_item" href="/static//static//static/events.html">All Events</a></li> 
-                          <li><a className="dropdown-item nav-link nav_item" href="/static/events-details.html">Events Details</a></li> 
-                        </ul>
-                      </div>
-                    </li>
-                    <li><a className="dropdown-item nav-link nav_item dropdown-toggler" href="#">Gallery</a>
-                      <div className="dropdown-menu">
-                        <ul> 
-                          <li><a className="dropdown-item nav-link nav_item" href="/static//static/gallery-three-columns.html">Grid 3 Columns</a></li>
-                          <li><a className="dropdown-item nav-link nav_item" href="/static//static/gallery-four-columns.html">Grid 4 Columns</a></li>
-                          <li><a className="dropdown-item nav-link nav_item" href="/static/gallery-masonry-three-columns.html">Masonry 3 Columns</a></li>
-                          <li><a className="dropdown-item nav-link nav_item" href="/static/gallery-masonry-four-columns.html">Masonry 4 Columns</a></li>
-                          <li><a className="dropdown-item nav-link nav_item" href="/static/gallery-detail.html">Gallery Detail</a></li>
-                        </ul>
-                      </div>
-                    </li>  
-                    <li><a className="dropdown-item nav-link nav_item" href="/static/faq.html">FAQ</a></li> 
+                    <li><a className="dropdown-item nav-link nav_item" href="/tracks">Courses</a></li>
+                    <li><a className="dropdown-item nav-link nav_item" href="/static/events.html">Events</a></li>
+                    <li><a className="dropdown-item nav-link nav_item" href="/static/team.html">Our Sister Concerns</a></li>
+                    <li><a className="dropdown-item nav-link nav_item" href="/static/team.html">Our Global Ambassadors</a></li>
+                    <li><a className="dropdown-item nav-link nav_item" href="#">Our Researchers</a></li>
+                    <li><a className="dropdown-item nav-link nav_item" href="/static/gallery-three-columns.html">Photo/Video Gallery</a></li>
+                    <li><a className="dropdown-item nav-link nav_item" href="/static/gallery-four-columns.html">Press/Media</a></li>
+                    <li><a className="dropdown-item nav-link nav_item" href="#">Reviews</a></li>
                     <li><a className="dropdown-item nav-link nav_item" href="/static/coming-soon.html">Coming Soon</a></li>
-                    <li><a className="dropdown-item nav-link nav_item" href="/static/404.html">404 Page</a></li>
-                  </ul>
-                </div>
-              </li>
-              <li className="dropdown dropdown-mega-menu">
-                <a className="dropdown-toggle nav-link" href="#" data-toggle="dropdown">Element</a>
-                <div className="dropdown-menu">
-                  <ul className="mega-menu d-lg-flex">
-                    <li className="mega-menu-col col-lg-3">
-                      <ul> 
-                        <li><a className="dropdown-item nav-link nav_item" href="accordions.html"><i className="ti-layout-accordion-separated"></i> Accordions</a></li> 
-                        <li><a className="dropdown-item nav-link nav_item" href="blockquotes.html"><i className="ti-quote-left"></i> Blockquotes</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="buttons.html"><i className="ti-mouse"></i> Buttons</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="call-to-action.html"><i className="ti-headphone-alt"></i> Call to Action</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="columns.html"><i className="ti-layout-column3-alt"></i> Columns</a></li>
-                      </ul>
-                    </li>
-                    <li className="mega-menu-col col-lg-3">
-                      <ul>
-                        <li><a className="dropdown-item nav-link nav_item" href="countdown.html"><i className="ti-alarm-clock"></i> Countdown</a></li> 
-                        <li><a className="dropdown-item nav-link nav_item" href="counter.html"><i className="ti-timer"></i> Counters</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="form-controls.html"><i className="ti-clipboard"></i> Form Controls</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="heading.html"><i className="ti-text"></i> Heading</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="highlights.html"><i className="ti-underline"></i> Highligts</a></li> 
-                      </ul>
-                    </li>
-                    <li className="mega-menu-col col-lg-3">
-                      <ul>
-                        <li><a className="dropdown-item nav-link nav_item" href="icon-boxes.html"><i className="ti-widget"></i> Icon Boxes</a></li> 
-                        <li><a className="dropdown-item nav-link nav_item" href="lists.html"><i className="ti-list"></i> Lists</a></li> 
-                        <li><a className="dropdown-item nav-link nav_item" href="maps.html"><i className="ti-map-alt"></i> Maps</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="pricing-table.html"><i className="ti-layout-column3"></i> Pricing Table</a></li> 
-                        <li><a className="dropdown-item nav-link nav_item" href="progress-bars.html"><i className="ti-layout-list-post"></i> Progress Bars</a></li>
-                      </ul>
-                    </li>
-                    <li className="mega-menu-col col-lg-3">
-                      <ul>
-                        <li><a className="dropdown-item nav-link nav_item" href="subscribe.html"><i className="ti-bookmark"></i> Subscribe</a></li> 
-                        <li><a className="dropdown-item nav-link nav_item" href="tab.html"><i className="ti-layout-accordion-separated"></i> Tab</a></li> 
-                        <li><a className="dropdown-item nav-link nav_item" href="testimonial.html"><i className="ti-layout-slider-alt"></i> Testimonials</a></li>
-                        <li><a className="dropdown-item nav-link nav_item" href="tooltips-popovers.html"><i className="ti-comment-alt"></i> Tooltip Popovers</a></li> 
-                      </ul>
-                    </li>
+                    <li><a className="dropdown-item nav-link nav_item" href="/static/contact.html">Contact Us</a></li>
                   </ul>
                 </div>
               </li>
@@ -260,17 +258,6 @@ export default function HtmlNavBar() {
                   </ul>
                 </div>
               </li>
-              <li className="dropdown">
-                <a className="dropdown-toggle nav-link" href="#" data-toggle="dropdown">Shop</a>
-                <div className="dropdown-menu">
-                  <ul> 
-                    <li><a className="dropdown-item nav-link nav_item" href="/static/shop.html">Shop List</a></li> 
-                    <li><a className="dropdown-item nav-link nav_item" href="/static/product-details.html">Product Detail</a></li> 
-                    <li><a className="dropdown-item nav-link nav_item" href="/static/cart.html">Cart</a></li> 
-                    <li><a className="dropdown-item nav-link nav_item" href="/static/checkout.html">Checkout</a></li> 
-                  </ul>
-                </div>
-              </li>
               <li>
                 <a className="nav-link" href="/static/contact.html">Contact</a>
               </li>
@@ -280,20 +267,25 @@ export default function HtmlNavBar() {
             <li id="dashboardNavItem" style={{ display: 'none' }}>
               <a href="javascript:void(0);" className="nav-link dashboard" onClick={(e) => {
                 e.preventDefault();
-                if (isAuthenticated) {
-                  if (role && /^org/i.test(String(role))) {
-                    navigate("/dashboard");
-                    return;
-                  }
-                  switch (role) {
-                    case "superadmin": navigate("/superadmin"); break;
-                    case "admin": navigate("/admin"); break;
-                    case "vendor": navigate("/vendor"); break;
-                    case "student": navigate("/dashboard"); break;
-                    default: navigate("/dashboard");
-                  }
+                const handleDashboardClick = (window as unknown as { handleDashboardClick?: (event: Event) => void }).handleDashboardClick;
+                if (handleDashboardClick) {
+                  handleDashboardClick(e.nativeEvent);
                 } else {
-                  navigate("/login");
+                  if (isAuthenticated) {
+                    if (role && /^org/i.test(String(role))) {
+                      navigate("/dashboard");
+                      return;
+                    }
+                    switch (role) {
+                      case "superadmin": navigate("/superadmin"); break;
+                      case "admin": navigate("/admin"); break;
+                      case "vendor": navigate("/vendor"); break;
+                      case "student": navigate("/dashboard"); break;
+                      default: navigate("/dashboard");
+                    }
+                  } else {
+                    navigate("/login");
+                  }
                 }
               }} title="Dashboard">
                 <i className="ion-person"></i>
