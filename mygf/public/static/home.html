@@ -296,6 +296,7 @@
     max-height: 60vh;
     overflow-y: auto;
     margin-top: 10px;
+    position: relative;
 }
 
 .modal-program-title {
@@ -304,6 +305,149 @@
     color: #333;
     margin-bottom: 20px;
     text-align: center;
+    position: relative;
+    padding-right: 50px;
+}
+
+/* Share Icon Styles */
+.modal-share-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: linear-gradient(135deg, #f8b8d3 0%, #f5a8cc 100%);
+    border: none;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.modal-share-btn:hover {
+    background: linear-gradient(135deg, #f5a8cc 0%, #f08fb5 100%);
+    transform: scale(1.1) rotate(15deg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-share-btn i {
+    color: #d32f2f;
+    font-size: 20px;
+}
+
+/* Share Options Dropdown */
+.share-options-dropdown {
+    position: absolute;
+    top: 55px;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    padding: 12px 8px;
+    min-width: 200px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.share-options-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.share-option-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    margin-bottom: 4px;
+    text-decoration: none;
+    color: #333;
+}
+
+.share-option-item:last-child {
+    margin-bottom: 0;
+}
+
+.share-option-item:hover {
+    background: #f8f9fa;
+    transform: translateX(4px);
+}
+
+.share-option-item i {
+    margin-right: 12px;
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+}
+
+.share-option-item .share-label {
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+}
+
+.share-option-item.copy-link i {
+    color: #d32f2f;
+}
+
+.share-option-item.facebook i {
+    color: #1877f2;
+}
+
+.share-option-item.twitter i {
+    color: #1da1f2;
+}
+
+.share-option-item.whatsapp i {
+    color: #25d366;
+}
+
+.share-option-item.linkedin i {
+    color: #0077b5;
+}
+
+.share-option-item.email i {
+    color: #d32f2f;
+}
+
+/* Share Success Toast */
+.share-toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.share-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.share-toast i {
+    font-size: 18px;
 }
 
 .modal-pending-section {
@@ -476,6 +620,38 @@
     
     .modal-program-title {
         font-size: 22px;
+        padding-right: 45px;
+    }
+    
+    .modal-share-btn {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .modal-share-btn i {
+        font-size: 18px;
+    }
+    
+    .share-options-dropdown {
+        top: 50px;
+        right: 0;
+        min-width: 180px;
+        padding: 10px 6px;
+    }
+    
+    .share-option-item {
+        padding: 8px 12px;
+    }
+    
+    .share-option-item .share-label {
+        font-size: 13px;
+    }
+    
+    .share-toast {
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        font-size: 13px;
     }
     
     /* Force single column for Course Structure in mobile view */
@@ -495,10 +671,39 @@
     
     .modal-program-title {
         font-size: 20px;
+        padding-right: 40px;
     }
     
     .modal-pending-text {
         font-size: 16px;
+    }
+    
+    .modal-share-btn {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .modal-share-btn i {
+        font-size: 16px;
+    }
+    
+    .share-options-dropdown {
+        top: 46px;
+        min-width: 160px;
+        padding: 8px 4px;
+    }
+    
+    .share-option-item {
+        padding: 6px 10px;
+    }
+    
+    .share-option-item i {
+        font-size: 16px;
+        margin-right: 10px;
+    }
+    
+    .share-option-item .share-label {
+        font-size: 12px;
     }
 }
 
@@ -2547,6 +2752,37 @@
         <!-- Modal Body -->
         <div class="modal-body">
             <h3 class="modal-program-title" id="modalProgramTitle">Program Title</h3>
+            <!-- Share Button -->
+            <button class="modal-share-btn" onclick="toggleShareOptions(event)" title="Share this program">
+                <i class="fas fa-share-alt"></i>
+            </button>
+            <!-- Share Options Dropdown -->
+            <div class="share-options-dropdown" id="shareOptionsDropdown">
+                <a href="#" class="share-option-item copy-link" onclick="copyShareLink(event); return false;">
+                    <i class="fas fa-link"></i>
+                    <span class="share-label">Copy Link</span>
+                </a>
+                <a href="#" class="share-option-item facebook" onclick="shareOnFacebook(event); return false;" target="_blank">
+                    <i class="fab fa-facebook-f"></i>
+                    <span class="share-label">Facebook</span>
+                </a>
+                <a href="#" class="share-option-item twitter" onclick="shareOnTwitter(event); return false;" target="_blank">
+                    <i class="fab fa-twitter"></i>
+                    <span class="share-label">Twitter</span>
+                </a>
+                <a href="#" class="share-option-item whatsapp" onclick="shareOnWhatsApp(event); return false;" target="_blank">
+                    <i class="fab fa-whatsapp"></i>
+                    <span class="share-label">WhatsApp</span>
+                </a>
+                <a href="#" class="share-option-item linkedin" onclick="shareOnLinkedIn(event); return false;" target="_blank">
+                    <i class="fab fa-linkedin-in"></i>
+                    <span class="share-label">LinkedIn</span>
+                </a>
+                <a href="#" class="share-option-item email" onclick="shareViaEmail(event); return false;">
+                    <i class="fas fa-envelope"></i>
+                    <span class="share-label">Email</span>
+                </a>
+            </div>
             <div id="modalProgramDetails" class="modal-program-details">
                 <!-- Content will be dynamically loaded here -->
             </div>
@@ -2684,12 +2920,12 @@ const programs = {
             
             <div class="program-section">
                 <h4><i class="fas fa-phone-alt"></i>How to Join</h4>
-                <p>Enroll with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a>, Belgaum, Karnataka to begin learning Reiki in English, Marathi, Hindi, or Kannada. Join live online batches or attend in-person workshops. Learn practical self-healing, help your loved ones, and develop a certified practice.</p>
+                <p>Enroll with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a>, Belgaum, Karnataka to begin learning Reiki in English, Marathi, Hindi, or Kannada. Join live online batches or attend in-person workshops. Learn practical self-healing, help your loved ones, and develop a certified practice.</p>
             </div>
             
             <div class="program-highlight">
                 <h5><i class="fas fa-exclamation-circle"></i>Quick Contact Note</h5>
-                <p>Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a> — Belgaum, Karnataka. Limited seats per batch to ensure quality practice and supervision.</p>
+                <p>Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a> — Belgaum, Karnataka. Limited seats per batch to ensure quality practice and supervision.</p>
             </div>
         `
     },
@@ -2792,7 +3028,7 @@ const programs = {
             
             <div class="program-highlight">
                 <h5><i class="fas fa-exclamation-circle"></i>Join the Dowsing Course Today</h5>
-                <p>Awaken your inner compass. Learn to sense, heal, and guide with the power of energy. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a> and begin your journey into subtle wisdom.</p>
+                <p>Awaken your inner compass. Learn to sense, heal, and guide with the power of energy. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a> and begin your journey into subtle wisdom.</p>
             </div>
         `
     },
@@ -2930,7 +3166,7 @@ const programs = {
             
             <div class="program-highlight">
                 <h5><i class="fas fa-exclamation-circle"></i>Join the Ancient Sciences Program</h5>
-                <p>Develop an integrated, ethical practice in astrology, palmistry, and numerology. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a> to gain practical skills, supervised experience, and certification that empowers you to read lives with clarity, compassion, and professional integrity.</p>
+                <p>Develop an integrated, ethical practice in astrology, palmistry, and numerology. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a> to gain practical skills, supervised experience, and certification that empowers you to read lives with clarity, compassion, and professional integrity.</p>
             </div>
         `
     },
@@ -2983,7 +3219,7 @@ const programs = {
             
             <div class="program-section">
                 <h4><i class="fas fa-certificate"></i>Certification</h4>
-                <p>Certified Yogshastra & Life Coach certificate from <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a> upon attendance, practical demonstration, and submission of case work.</p>
+                <p>Certified Yogshastra & Life Coach certificate from <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a> upon attendance, practical demonstration, and submission of case work.</p>
             </div>
             
             <div class="program-section">
@@ -3009,13 +3245,13 @@ const programs = {
                 <ul>
                     <li>Transparent tiered fees (Foundation, Practitioner, Advanced); early-bird and bundle discounts available</li>
                     <li>Payment by UPI, bank transfer, or online gateway</li>
-                    <li>How to enroll: Register with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a> to reserve your seat and receive pre-course materials</li>
+                    <li>How to enroll: Register with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a> to reserve your seat and receive pre-course materials</li>
                 </ul>
             </div>
             
             <div class="program-highlight">
                 <h5><i class="fas fa-exclamation-circle"></i>Join the Course</h5>
-                <p>Become an empowered guide for wellbeing and life purpose. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a> to train in Yogshastra and Life Coaching and begin transforming lives with skill, compassion, and integrity.</p>
+                <p>Become an empowered guide for wellbeing and life purpose. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a> to train in Yogshastra and Life Coaching and begin transforming lives with skill, compassion, and integrity.</p>
             </div>
         `
     },
@@ -3096,7 +3332,7 @@ const programs = {
             
             <div class="program-section">
                 <h4><i class="fas fa-certificate"></i>Certification</h4>
-                <p>On completion, participants receive a Certified Vastu Consultant certificate issued by <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a>. Certification requires attendance, practical assignment, and a case-study submission.</p>
+                <p>On completion, participants receive a Certified Vastu Consultant certificate issued by <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a>. Certification requires attendance, practical assignment, and a case-study submission.</p>
             </div>
             
             <div class="program-section">
@@ -3126,7 +3362,7 @@ const programs = {
             
             <div class="program-highlight">
                 <h5><i class="fas fa-exclamation-circle"></i>Join the Vastu Shastra Course</h5>
-                <p>Align your space with natural intelligence. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">M Y Gangoor Global (R) Foundation</a> to become a confident, ethical Vastu practitioner and transform spaces for wellbeing and prosperity.</p>
+                <p>Align your space with natural intelligence. Enroll now with <a href="https://www.mygangoor.com" style="color: #e91e63; font-weight: 600; text-decoration: none; border-bottom: 2px solid #e91e63;">@2025 M Y Gangoor Global (R) Foundation</a> to become a confident, ethical Vastu practitioner and transform spaces for wellbeing and prosperity.</p>
             </div>
         `
     },
@@ -3149,6 +3385,15 @@ function openProgramModal(programKey) {
     const headerDescription = document.getElementById('modalHeaderDescription');
     const programImage = document.getElementById('modalProgramImage');
     const programDetails = document.getElementById('modalProgramDetails');
+    const shareDropdown = document.getElementById('shareOptionsDropdown');
+    
+    // Store current program key for sharing
+    currentShareProgramKey = programKey;
+    
+    // Close share dropdown if open
+    if (shareDropdown) {
+        shareDropdown.classList.remove('show');
+    }
     
     if (programs[programKey]) {
         // Update modal body title
@@ -3177,8 +3422,31 @@ function openProgramModal(programKey) {
 // Function to close modal
 function closeProgramModal() {
     const modal = document.getElementById('programModal');
+    const modalHeaderSection = document.querySelector('.modal-header-section');
+    const arrowIcon = document.querySelector('.modal-header-arrow i');
+    const shareDropdown = document.getElementById('shareOptionsDropdown');
+    
     modal.classList.remove('show');
     document.body.style.overflow = 'auto'; // Restore scrolling
+    
+    // Reset header state when modal closes
+    if (modalHeaderSection) {
+        modalHeaderSection.removeAttribute('data-expanded');
+        modalHeaderSection.removeAttribute('data-original-height');
+        modalHeaderSection.style.minHeight = '';
+    }
+    
+    // Reset arrow icon to down arrow
+    if (arrowIcon) {
+        arrowIcon.classList.remove('fa-chevron-up');
+        arrowIcon.classList.add('fa-chevron-down');
+    }
+    
+    // Close share dropdown and reset program key
+    if (shareDropdown) {
+        shareDropdown.classList.remove('show');
+    }
+    currentShareProgramKey = null;
 }
 
 // Close modal when clicking outside
@@ -3191,27 +3459,257 @@ document.getElementById('programModal').addEventListener('click', function(e) {
 // Close modal with Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        closeProgramModal();
+        const shareDropdown = document.getElementById('shareOptionsDropdown');
+        // Close share dropdown first if open
+        if (shareDropdown && shareDropdown.classList.contains('show')) {
+            shareDropdown.classList.remove('show');
+        } else {
+            closeProgramModal();
+        }
     }
 });
 
-// Function to scroll to modal content with header expansion
+// Function to scroll to modal content with header expansion/collapse toggle
 function scrollToModalContent() {
     const modalBody = document.querySelector('.modal-body');
     const modalHeaderSection = document.querySelector('.modal-header-section');
     const modalContent = document.querySelector('.modal-content');
+    const arrowIcon = document.querySelector('.modal-header-arrow i');
     
-    if (modalHeaderSection && modalBody && modalContent) {
-        // Expand header by increasing min-height
-        const currentHeight = modalHeaderSection.offsetHeight;
-        modalHeaderSection.style.minHeight = (currentHeight + 80) + 'px';
-        modalHeaderSection.style.transition = 'min-height 0.4s ease';
+    if (modalHeaderSection && modalBody && modalContent && arrowIcon) {
+        // Check if header is already expanded
+        const isExpanded = modalHeaderSection.dataset.expanded === 'true';
+        const originalHeight = modalHeaderSection.dataset.originalHeight || modalHeaderSection.offsetHeight;
         
-        // Wait for expansion to push content down
-        setTimeout(() => {
-            modalBody.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 400);
+        // Store original height on first interaction if not stored
+        if (!modalHeaderSection.dataset.originalHeight) {
+            modalHeaderSection.dataset.originalHeight = modalHeaderSection.offsetHeight;
+        }
+        
+        if (!isExpanded) {
+            // Expand header by increasing min-height (only once)
+            const currentHeight = modalHeaderSection.offsetHeight;
+            const expandedHeight = parseFloat(originalHeight) + 80;
+            modalHeaderSection.style.minHeight = expandedHeight + 'px';
+            modalHeaderSection.style.transition = 'min-height 0.4s ease';
+            modalHeaderSection.dataset.expanded = 'true';
+            
+            // Change icon to up arrow
+            arrowIcon.classList.remove('fa-chevron-down');
+            arrowIcon.classList.add('fa-chevron-up');
+            
+            // Wait for expansion to push content down
+            setTimeout(() => {
+                modalBody.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 400);
+        } else {
+            // Collapse header back to original height
+            modalHeaderSection.style.minHeight = originalHeight + 'px';
+            modalHeaderSection.style.transition = 'min-height 0.4s ease';
+            modalHeaderSection.dataset.expanded = 'false';
+            
+            // Change icon back to down arrow
+            arrowIcon.classList.remove('fa-chevron-up');
+            arrowIcon.classList.add('fa-chevron-down');
+        }
     }
+}
+
+// Store current program key for sharing
+let currentShareProgramKey = null;
+
+// Function to toggle share options dropdown
+function toggleShareOptions(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    
+    if (dropdown) {
+        const isOpen = dropdown.classList.contains('show');
+        
+        if (isOpen) {
+            dropdown.classList.remove('show');
+        } else {
+            dropdown.classList.add('show');
+        }
+    }
+}
+
+// Close share dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    const shareBtn = document.querySelector('.modal-share-btn');
+    
+    if (dropdown && shareBtn && !dropdown.contains(event.target) && !shareBtn.contains(event.target)) {
+        dropdown.classList.remove('show');
+    }
+});
+
+// Function to generate shareable link
+function generateShareLink(programKey) {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}?program=${programKey}&utm_source=share&utm_medium=social`;
+    return shareUrl;
+}
+
+// Function to get current program info for sharing
+function getCurrentProgramInfo() {
+    const titleElement = document.getElementById('modalProgramTitle');
+    const headerTitle = document.getElementById('modalHeaderTitle');
+    const headerDescription = document.getElementById('modalHeaderDescription');
+    
+    const programTitle = titleElement ? titleElement.textContent : 'Program';
+    const shareTitle = headerTitle ? headerTitle.textContent : programTitle;
+    const shareDescription = headerDescription ? headerDescription.textContent : 'Check out this program from M.Y. Gangoor Global Foundation';
+    
+    return {
+        title: shareTitle,
+        description: shareDescription,
+        url: currentShareProgramKey ? generateShareLink(currentShareProgramKey) : window.location.href
+    };
+}
+
+// Function to copy share link to clipboard
+async function copyShareLink(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    const info = getCurrentProgramInfo();
+    
+    try {
+        // Use Clipboard API if available
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(info.url);
+            showShareToast('Link copied to clipboard!');
+        } else {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = info.url;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showShareToast('Link copied to clipboard!');
+        }
+        
+        if (dropdown) {
+            dropdown.classList.remove('show');
+        }
+    } catch (error) {
+        console.error('Error copying link:', error);
+        showShareToast('Failed to copy link. Please try again.', true);
+    }
+}
+
+// Function to share on Facebook
+function shareOnFacebook(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    const info = getCurrentProgramInfo();
+    
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(info.url)}&quote=${encodeURIComponent(info.title + ' - ' + info.description)}`;
+    window.open(facebookUrl, 'facebook-share-dialog', 'width=626,height=436');
+    
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+}
+
+// Function to share on Twitter
+function shareOnTwitter(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    const info = getCurrentProgramInfo();
+    
+    const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(info.url)}&text=${encodeURIComponent(info.title + ' - ' + info.description)}`;
+    window.open(twitterUrl, 'twitter-share-dialog', 'width=626,height=436');
+    
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+}
+
+// Function to share on WhatsApp
+function shareOnWhatsApp(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    const info = getCurrentProgramInfo();
+    
+    const whatsappText = `${info.title} - ${info.description} ${info.url}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+}
+
+// Function to share on LinkedIn
+function shareOnLinkedIn(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    const info = getCurrentProgramInfo();
+    
+    const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(info.url)}`;
+    window.open(linkedInUrl, 'linkedin-share-dialog', 'width=626,height=436');
+    
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+}
+
+// Function to share via Email
+function shareViaEmail(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('shareOptionsDropdown');
+    const info = getCurrentProgramInfo();
+    
+    const subject = encodeURIComponent(info.title);
+    const body = encodeURIComponent(`${info.description}\n\n${info.url}`);
+    const emailUrl = `mailto:?subject=${subject}&body=${body}`;
+    
+    window.location.href = emailUrl;
+    
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+}
+
+// Function to show share toast notification
+function showShareToast(message, isError = false) {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.share-toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `share-toast ${isError ? 'error' : ''}`;
+    toast.style.background = isError 
+        ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
+        : 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)';
+    toast.innerHTML = `
+        <i class="fas ${isError ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Hide and remove toast after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 300);
+    }, 3000);
 }
 
 // Handle Join Now button click with authentication check
