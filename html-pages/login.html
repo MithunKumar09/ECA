@@ -8,6 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Sign in to continue your learning journey.">
 <meta name="keywords" content="login, sign in, yoga, meditation, courses">
+<meta name="api-base-url" content="https://eca-uvco.onrender.com/api">
 
 <!-- SITE TITLE -->
 <title>Sign In - M.Y. Gangoor Global Foundation</title>
@@ -41,11 +42,15 @@
     const apiMeta = document.querySelector('meta[name="api-base-url"]');
     const apiBaseFromMeta = apiMeta ? apiMeta.getAttribute('content') : null;
     
-    // If meta tag exists, use it; otherwise default to same-origin
+    // If meta tag exists, use it. Otherwise:
+    // - localhost: use same-origin /api (Vite proxy/dev server)
+    // - production static hosting: use Render backend directly
     if (apiBaseFromMeta) {
         window.API_BASE_URL = apiBaseFromMeta;
     } else {
-        window.API_BASE_URL = '/api';
+        const host = String(window.location.hostname || '').toLowerCase();
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+        window.API_BASE_URL = isLocal ? '/api' : 'https://eca-uvco.onrender.com/api';
     }
     
     console.log('[Login Page] API Base URL:', window.API_BASE_URL);
@@ -336,6 +341,15 @@
 // CSRF Token handling
 let csrfToken = null;
 
+async function safeJson(response) {
+    const ct = response.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Expected JSON but got "${ct || 'unknown'}". Body starts with: ${text.slice(0, 80)}`);
+    }
+    return await response.json();
+}
+
 async function getCsrfToken() {
     if (csrfToken) return csrfToken;
     
@@ -345,7 +359,7 @@ async function getCsrfToken() {
             method: 'GET',
             credentials: 'include'
         });
-        const data = await response.json();
+        const data = await safeJson(response);
         csrfToken = data.token;
         return csrfToken;
     } catch (error) {
@@ -476,7 +490,7 @@ async function checkAuthStatus() {
             }
         });
         
-        const data = await response.json();
+        const data = await safeJson(response);
         if (data?.ok && data?.user) {
             // User is already logged in - redirect to appropriate dashboard
             const base = routeForRole(data.user?.role);

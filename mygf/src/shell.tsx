@@ -38,8 +38,8 @@ export default function Shell({ children, allowedRoles, requireMfaIf }: Props) {
   );
 
   if (!allowed) {
-    return <Navigate to="/home" replace />;
-  }
+  return <Navigate to="/login" replace />;
+}
 
   if (requireMfaIf && requireMfaIf(role) && !mfaVerified) {
     return <Navigate to="/mfa" state={{ from: location }} replace />;

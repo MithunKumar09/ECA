@@ -1,7 +1,7 @@
 // mygf/src/components/pages/TracksAndCollectionsSection.tsx
 import { useMemo, useState, useEffect } from "react";
 import type { Availability, Chip, Course, Level } from "./tracks/types";
-import HtmlNavBar from "../common/HtmlNavBar";
+import NavBar from "../home/NavBar";
 import useDebouncedValue from "./tracks/useDebouncedValue";
 import SearchBar from "./tracks/SearchBar";
 import FilterChips from "./tracks/FilterChips";
@@ -40,7 +40,7 @@ export default function TracksAndCollectionsSection() {
     return (
       <>
         <TopProgressBar active />
-        <div className="relative z-20"><HtmlNavBar /></div>
+        <div className="relative z-20"><NavBar /></div>
         <section className="relative isolate w-full overflow-hidden pt-[5.5rem] sm:pt-[6rem] md:pt-[7rem]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -261,7 +261,7 @@ function TracksBody({ user }: { user?: User }) {
       <TopProgressBar active={loading || prefetching} />
       {/* make the sticky NavBar full-bleed (not inside max-w) */}
       <div className="relative z-20">
-        <HtmlNavBar />
+        <NavBar />
       </div>
 
       {/* Hero header: mimic /tracks black header */}

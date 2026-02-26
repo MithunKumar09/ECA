@@ -1,6 +1,5 @@
 //`src/App.tsx`
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
 import RequireOrgUser from "./auth/RequireOrgUser";
 import { NotificationsProvider } from "./hooks/useNotifications";
 import ReminderPopup from "./components/notifications/ReminderPopup";
@@ -18,6 +17,7 @@ import AboutSection from "./components/about/AboutSection";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import Mfa from "./pages/auth/Mfa";
 import ReceiptClaim from "./components/screens/ReceiptClaim";
+import SignIn from "./components/screens/SignIn";
 
 // ---------- Admin area (already present under src/admin) ----------
 import SuperadminLayout from "./admin/layouts/SuperadminLayout";
@@ -82,7 +82,7 @@ export default function App() {
     <NotificationsProvider>
     <Routes>
       {/* Default route redirects to static HTML home page */}
-      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       
       {/* Home is served as static HTML from html-pages folder (outside React) */}
       {/* The backend and vite.config.ts handle serving /home directly */}
@@ -100,7 +100,7 @@ export default function App() {
   }
 />
       <Route path="/about" element={<AboutSection />} />
-      <Route path="/login" element={<LoginRedirect />} />
+      <Route path="/login" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/accept-invitation" element={<AcceptInvitation />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -202,7 +202,7 @@ export default function App() {
         </Route>
 
       {/* Fallback - redirect to static HTML home */}
-      <Route path="*" element={<Navigate to="/home" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
         <ReminderPopup />
     </NotificationsProvider>
@@ -215,14 +215,6 @@ function TracksGateLoader() {
       Loading…
     </div>
   );
-}
-
-function LoginRedirect() {
-  useEffect(() => {
-    const qs = window.location.search || "";
-    window.location.assign(`/login.html${qs}`);
-  }, []);
-  return null;
 }
 
 // StaticHome component removed - HTML files are now served directly from html-pages folder

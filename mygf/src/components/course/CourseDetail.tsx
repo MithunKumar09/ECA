@@ -2,7 +2,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import HtmlNavBar from "../common/HtmlNavBar";
+import NavBar from "../home/NavBar";
 import CourseHeader from "./CourseHeader";
 import CourseProgress from "./CourseProgress";
 import LevelCard from "./LevelCard";
@@ -358,7 +358,7 @@ export default function CourseDetail() {
   return (
     <>
       <div className="relative z-20">
-        <HtmlNavBar />
+        <NavBar />
       </div>
 
       <div className="min-h-screen p-4 md:p-8">

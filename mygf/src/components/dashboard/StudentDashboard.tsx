@@ -1,7 +1,7 @@
 // mygf/src/components/dashboard/StudentDashboard.tsx
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import HtmlNavBar from "../common/HtmlNavBar";
+import NavBar from "../home/NavBar";
 import DashboardHeader from "./DashboardHeader";
 import WelcomeBanner from "./WelcomeBanner";
 import ProfileInfoCard from "./ProfileInfoCard";
@@ -163,7 +163,7 @@ export default function StudentDashboard() {
   return (
     <>
       <div className="relative z-20">
-        <HtmlNavBar />
+        <NavBar />
       </div>
 
       <div className="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen font-sans pt-16 sm:pt-20">

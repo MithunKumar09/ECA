@@ -309,50 +309,50 @@ app.use("/api/notes", notesRouter);
 app.use("/api/student/notes", studentNotesRouter);
 
 // Serve HTML pages from html-pages folder (outside React)
-const htmlPagesDir = path.join(process.cwd(), "html-pages");
-if (fs.existsSync(htmlPagesDir)) {
-  // Serve static assets (CSS, JS, images) from html-pages/assets
-  // Serve from both /html-assets and /static/assets to maintain compatibility
-  app.use("/html-assets", express.static(path.join(htmlPagesDir, "assets")));
-  app.use("/static/assets", express.static(path.join(htmlPagesDir, "assets")));
+// const htmlPagesDir = path.join(process.cwd(), "html-pages");
+// if (fs.existsSync(htmlPagesDir)) {
+//   // Serve static assets (CSS, JS, images) from html-pages/assets
+//   // Serve from both /html-assets and /static/assets to maintain compatibility
+//   app.use("/html-assets", express.static(path.join(htmlPagesDir, "assets")));
+//   app.use("/static/assets", express.static(path.join(htmlPagesDir, "assets")));
   
-  // Serve other static files from html-pages root (like notification-bell-standalone.js)
-  app.use("/static", express.static(htmlPagesDir, {
-    // Only serve non-HTML files from root
-    setHeaders: (res, filePath) => {
-      if (path.extname(filePath) === '.html') {
-        res.setHeader('Content-Type', 'text/html');
-      }
-    }
-  }));
+//   // Serve other static files from html-pages root (like notification-bell-standalone.js)
+//   app.use("/static", express.static(htmlPagesDir, {
+//     // Only serve non-HTML files from root
+//     setHeaders: (res, filePath) => {
+//       if (path.extname(filePath) === '.html') {
+//         res.setHeader('Content-Type', 'text/html');
+//       }
+//     }
+//   }));
   
-  // Serve HTML files directly
-  app.get("/home", (req, res) => {
-    res.sendFile(path.join(htmlPagesDir, "home.html"));
-  });
+//   // Serve HTML files directly
+//   app.get("/home", (req, res) => {
+//     res.sendFile(path.join(htmlPagesDir, "home.html"));
+//   });
   
-  app.get("/login.html", (req, res) => {
-    res.sendFile(path.join(htmlPagesDir, "login.html"));
-  });
+//   app.get("/login.html", (req, res) => {
+//     res.sendFile(path.join(htmlPagesDir, "login.html"));
+//   });
 
-  // Canonicalize login URL: /login → /login.html (preserve querystring)
-  app.get("/login", (req, res) => {
-    const qs = req.originalUrl && req.originalUrl.includes("?")
-      ? req.originalUrl.slice(req.originalUrl.indexOf("?"))
-      : "";
-    return res.redirect(302, `/login.html${qs}`);
-  });
+//   // Canonicalize login URL: /login → /login.html (preserve querystring)
+//   app.get("/login", (req, res) => {
+//     const qs = req.originalUrl && req.originalUrl.includes("?")
+//       ? req.originalUrl.slice(req.originalUrl.indexOf("?"))
+//       : "";
+//     return res.redirect(302, `/login.html${qs}`);
+//   });
   
-  // Serve any other HTML files from html-pages
-  app.get("/*.html", (req, res, next) => {
-    const htmlFile = path.join(htmlPagesDir, req.path);
-    if (fs.existsSync(htmlFile) && htmlFile.startsWith(htmlPagesDir)) {
-      res.sendFile(htmlFile);
-    } else {
-      next();
-    }
-  });
-}
+//   // Serve any other HTML files from html-pages
+//   app.get("/*.html", (req, res, next) => {
+//     const htmlFile = path.join(htmlPagesDir, req.path);
+//     if (fs.existsSync(htmlFile) && htmlFile.startsWith(htmlPagesDir)) {
+//       res.sendFile(htmlFile);
+//     } else {
+//       next();
+//     }
+//   });
+// }
 
 // Serve React SPA build (if present) and provide history fallback for SPA routes
 const spaDistDir = path.join(process.cwd(), "mygf", "dist");

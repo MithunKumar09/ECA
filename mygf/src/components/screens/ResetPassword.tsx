@@ -1,7 +1,7 @@
 //mygf/src/components/screens/ResetPassword.tsx
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import HtmlNavBar from "../common/HtmlNavBar";
+import NavBar from "../home/NavBar";
 import {api} from '../../api/client';
 import Footer from "../common/Footer";
 
@@ -38,7 +38,7 @@ const ResetPassword = () => {
   return (
     <>
       <div className="relative z-20">
-        <HtmlNavBar />
+        <NavBar />
       </div>
 
       <div className="relative min-h-[calc(100vh-64px)] flex items-center justify-center px-4 bg-gradient-to-b from-slate-50 via-sky-50 to-slate-100">

@@ -1,3 +1,4 @@
+<!-- home.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,11 +53,15 @@
     const apiMeta = document.querySelector('meta[name="api-base-url"]');
     const apiBaseFromMeta = apiMeta ? apiMeta.getAttribute('content') : null;
     
-    // If meta tag exists, use it; otherwise default to same-origin
+    // If meta tag exists, use it. Otherwise:
+    // - localhost: use same-origin /api (Vite proxy/dev server)
+    // - production static hosting: use Render backend directly
     if (apiBaseFromMeta) {
         window.API_BASE_URL = apiBaseFromMeta;
     } else {
-        window.API_BASE_URL = '/api';
+        const host = String(window.location.hostname || '').toLowerCase();
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+        window.API_BASE_URL = isLocal ? '/api' : 'https://eca-uvco.onrender.com/api';
     }
     
     console.log('[Home Page] API Base URL:', window.API_BASE_URL);

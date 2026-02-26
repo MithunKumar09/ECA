@@ -1,8 +1,8 @@
 // mygf/src/components/screens/SignUp.tsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import HtmlNavBar from "../common/HtmlNavBar";
-import { GoogleLogin } from '@react-oauth/google';
+import NavBar from "../home/NavBar";
+// import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../auth/store';
 import { api } from '../../api/client';
 import Footer from "../common/Footer";
@@ -125,7 +125,7 @@ const SignUp: React.FC = () => {
 
   return (
     <>
-        <HtmlNavBar />
+        <NavBar />
       <div
   className="relative flex items-center justify-center min-h-screen px-4
              pt-24 md:pt-28
@@ -289,12 +289,12 @@ const SignUp: React.FC = () => {
             {/* Divider */}
             <div className="flex items-center gap-3 my-2">
               <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs text-slate-500">or</span>
+              <span className="text-xs text-slate-500">....</span>
               <div className="h-px flex-1 bg-slate-200" />
             </div>
 
             {/* Google Sign Up */}
-            <div className="flex justify-center">
+            {/* <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={async (credentialResponse) => {
                   try {
@@ -314,7 +314,7 @@ const SignUp: React.FC = () => {
                 }}
                 onError={() => { alert('Google Login Failed'); }}
               />
-            </div>
+            </div> */}
 
             <p className="text-center text-sm text-slate-600">
               Already have an account?{' '}
@@ -326,7 +326,7 @@ const SignUp: React.FC = () => {
         </div>
       </div>
 
-      <Footer brandName="ECA Academy" tagline="Learn smarter. Build faster." />
+      <Footer/>
     </>
   );
 };

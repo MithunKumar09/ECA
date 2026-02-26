@@ -5,7 +5,31 @@ import { createPortal } from "react-dom";
 import { useAuth } from "../../auth/store";
 import { JoinNowModal } from "../join";
 import NotificationBell from "../notifications/NotificationBell";
+import logo from "../../assets/logo.png";
 
+function BrandLogo() {
+  const [error, setError] = useState(false);
+
+  if (error || !logo) {
+    // silent placeholder – no broken image icon
+    return (
+      <div
+        className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return (
+    <img
+      src={logo}
+      alt=""
+      className="h-10 w-auto object-contain"
+      onError={() => setError(true)}
+      draggable={false}
+    />
+  );
+}
 export default function NavBar() {
   const navigate = useNavigate();
 const user = useAuth(s => s.user);
@@ -77,9 +101,6 @@ const isAuthed = isAuthenticated;
     setJoinOpen(true);
   };
 
-  // shared handlers for links (close drawer first on mobile)
-  const goHome = (e?: React.MouseEvent) => { e?.preventDefault?.(); setMobileOpen(false); navigate("/home"); };
-  const goAbout = (e?: React.MouseEvent) => { e?.preventDefault?.(); setMobileOpen(false); navigate("/about"); };
   const goDashOrLogin = () => { setMobileOpen(false); goLoginOrDashboard(); };
   const openJoin = () => { setMobileOpen(false); openJoinForm(); };
 
@@ -88,31 +109,15 @@ const isAuthed = isAuthenticated;
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Brand */}
-          <div className="flex items-center">
-            <div className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
-              ECA Academy
-            </div>
-          </div>
+<div className="flex items-center gap-2 cursor-pointer">
+  <BrandLogo />
+</div>
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center space-x-8">
-            <a
-              href="/home"
-              onClick={goHome}
-              className="nav-link text-gray-700 hover:text-pink-500 flex items-center gap-2"
-            >
-              <i className="fa-solid fa-house-chimney" /><span>Home</span>
-            </a>
-            <a
-              href="/about"
-              onClick={goAbout}
-              className="nav-link text-gray-700 hover:text-pink-500 flex items-center gap-2"
-            >
-              <i className="fa-solid fa-circle-info" /><span>About</span>
-            </a>
 
             {/* Notification bell sits inline with the desktop links */}
-            <NotificationBell />
+            {isAuthed && <NotificationBell />}
           </div>
 
           {/* CTAs */}
@@ -175,20 +180,6 @@ const isAuthed = isAuthenticated;
         </div>
 
         <nav className="px-4 py-3">
-          <button
-            onClick={goHome}
-            className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-gray-800 hover:bg-pink-50"
-          >
-            <i className="fa-solid fa-house-chimney text-pink-500" />
-            <span>Home</span>
-          </button>
-          <button
-            onClick={goAbout}
-            className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-gray-800 hover:bg-pink-50"
-          >
-            <i className="fa-solid fa-circle-info text-blue-500" />
-            <span>About</span>
-          </button>
 
           <div className="my-3 h-px bg-pink-100" />
 
@@ -210,13 +201,14 @@ const isAuthed = isAuthenticated;
 
           {/* Keep bell in the mobile drawer */}
           {/* Mobile bell: aligned with the drawer content */}
-<div className="mt-4">
-  <div className="w-full flex items-center gap-3 rounded-xl px-8 py-3 text-gray-800 hover:bg-pink-50">
-    <NotificationBell />
-    <span className="text-sm">Notifications</span>
+{isAuthed && (
+  <div className="mt-4">
+    <div className="w-full flex items-center gap-3 rounded-xl px-8 py-3 text-gray-800 hover:bg-pink-50">
+      <NotificationBell />
+      <span className="text-sm">Notifications</span>
+    </div>
   </div>
-</div>
-
+)}
         </nav>
 
         <div className="mt-auto px-4 py-4 text-xs text-gray-500">

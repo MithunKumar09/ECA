@@ -1,6 +1,15 @@
 // Shared public auth UI helpers (HTML pages only)
 (function () {
-  const apiBase = window.API_BASE_URL || "/api";
+  // Canonical API base selection for static hosting (Hostinger) + local dev.
+  // If API_BASE_URL is already set by the page, respect it; otherwise compute.
+  const apiBase = (function () {
+    if (window.API_BASE_URL) return window.API_BASE_URL;
+    const host = String(window.location.hostname || '').toLowerCase();
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+    const v = isLocal ? '/api' : 'https://eca-uvco.onrender.com/api';
+    window.API_BASE_URL = v;
+    return v;
+  })();
   const LOCK_KEY = "eca:auth:refresh_lock";
   const SIGNAL_KEY = "eca:auth:refresh_signal";
   const TERMINATED_KEY = "eca:auth:terminated";

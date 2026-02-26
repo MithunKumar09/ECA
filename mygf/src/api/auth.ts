@@ -60,8 +60,16 @@ export async function refresh(): Promise<{ ok: boolean; accessToken?: string }> 
 }
 
 export async function logout(): Promise<{ ok: boolean }> {
-  const { data } = await api.post('auth/logout');
-  return data;
+  const res = await api.post(
+    'auth/logout',
+    null,
+    {
+      maxRedirects: 0,          // 🔥 prevent backend redirect
+      validateStatus: status => status < 400 || status === 302,
+    }
+  );
+
+  return res.data ?? { ok: true };
 }
 
 //SignUp precheck logics

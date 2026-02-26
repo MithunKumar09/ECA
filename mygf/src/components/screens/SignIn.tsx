@@ -1,12 +1,12 @@
 // mygf/src/components/screens/SignIn.tsx
 import React, { useEffect, useState } from 'react';
-import HtmlNavBar from "../common/HtmlNavBar";
+import NavBar from "../home/NavBar";
 import { useNavigate, useLocation } from 'react-router-dom';
 import Footer from "../common/Footer";
 import { useAuth } from '../../auth/store';
 import { api } from '../../api/client';
 import { ensureCsrfToken, getCsrfToken } from '../../config/csrf';
-import { GoogleLogin } from '@react-oauth/google';
+// import { GoogleLogin } from '@react-oauth/google';
 
 function routeForRole(role?: string) {
   if (role === "superadmin") return "/superadmin";
@@ -103,7 +103,7 @@ const SignIn: React.FC = () => {
 
   return (
     <>
-        <HtmlNavBar />
+        <NavBar />
             <div
         className="relative flex items-center justify-center min-h-screen px-4
                    pt-24 md:pt-28
@@ -185,12 +185,12 @@ const SignIn: React.FC = () => {
             {/* Divider */}
             <div className="flex items-center gap-3 my-2">
               <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs text-slate-500">or</span>
+              <span className="text-xs text-slate-500">....</span>
               <div className="h-px flex-1 bg-slate-200" />
             </div>
 
             {/* Google Login (adds CSRF header too) */}
-            <div className="flex justify-center">
+            {/* <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={async (credentialResponse) => {
                   try {
@@ -219,7 +219,7 @@ const SignIn: React.FC = () => {
                   alert('Google Login Failed');
                 }}
               />
-            </div>
+            </div> */}
 
             <p className="text-center text-sm text-slate-600">
               Don’t have an account?{' '}
@@ -233,8 +233,6 @@ const SignIn: React.FC = () => {
 
       {/* Footer at the end */}
       <Footer
-        brandName="ECA Academy"
-        tagline="Learn smarter. Build faster."
       />
     </>
   );

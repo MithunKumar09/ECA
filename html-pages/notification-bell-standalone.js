@@ -67,7 +67,8 @@
 
     // Fetch notifications
     function fetchNotifications() {
-        const tryFetch = () => fetch('/api/notifications/list?unreadOnly=true&limit=20', { credentials: 'include' });
+        const apiBase = (window.API_BASE_URL || '/api');
+        const tryFetch = () => fetch(`${apiBase}/notifications/list?unreadOnly=true&limit=20`, { credentials: 'include' });
 
         return tryFetch()
         .then(async (res) => {

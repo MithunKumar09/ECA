@@ -1,6 +1,6 @@
 // mygf/src/components/about/AboutSection.tsx
 import React from "react";
-import HtmlNavBar from "../common/HtmlNavBar";
+import NavBar from "../home/NavBar";
 import Footer from "../common/Footer";
 import { Link } from "react-router-dom";
 
@@ -97,7 +97,7 @@ const AboutSection: React.FC = () => {
     <>
       {/* Full-bleed nav */}
       <div className="relative z-20">
-        <HtmlNavBar />
+        <NavBar />
       </div>
 
       {/* Spacer below fixed navbar */}
@@ -409,7 +409,7 @@ const AboutSection: React.FC = () => {
         </main>
 
         {/* Footer */}
-        <Footer brandName="ECA" tagline="Engineers Computer Academy · A unit of M.Y. Gangoor International Foundation®" />
+        <Footer />
       </section>
     </>
   );

@@ -1,7 +1,7 @@
 // mygf/src/components/screens/AcceptInvitation.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import HtmlNavBar from "../common/HtmlNavBar";
+import NavBar from "../home/NavBar";
 import { api } from '../../api/client';
 import Footer from "../common/Footer";
 
@@ -169,7 +169,7 @@ const AcceptInvitation: React.FC = () => {
   if (loading) {
     return (
       <>
-        <HtmlNavBar />
+        <NavBar />
         <div className="relative flex items-center justify-center min-h-screen px-4 pt-24 md:pt-28 bg-gradient-to-b from-slate-50 via-sky-50 to-slate-100">
           <AuthBackdrop />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 shadow-xl bg-white/80 backdrop-blur p-6">
@@ -187,7 +187,7 @@ const AcceptInvitation: React.FC = () => {
   if (error && !invitation) {
     return (
       <>
-        <HtmlNavBar />
+        <NavBar />
         <div className="relative flex items-center justify-center min-h-screen px-4 pt-24 md:pt-28 bg-gradient-to-b from-slate-50 via-sky-50 to-slate-100">
           <AuthBackdrop />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 shadow-xl bg-white/80 backdrop-blur p-6">
@@ -213,7 +213,7 @@ const AcceptInvitation: React.FC = () => {
 
   return (
     <>
-      <HtmlNavBar />
+      <NavBar />
       <div className="relative flex items-center justify-center min-h-screen px-4 pt-24 md:pt-28 bg-gradient-to-b from-slate-50 via-sky-50 to-slate-100">
         <AuthBackdrop />
 
