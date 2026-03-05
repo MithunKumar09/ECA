@@ -113,12 +113,22 @@ const isAuthed = isAuthenticated;
   <BrandLogo />
 </div>
 
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center space-x-8">
+{/* Desktop links */}
+<div className="hidden md:flex items-center space-x-8">
 
-            {/* Notification bell sits inline with the desktop links */}
-            {isAuthed && <NotificationBell />}
-          </div>
+  {/* Courses (only if authenticated) */}
+  {isAuthed && (
+    <button
+    onClick={() => navigate("/tracks")}
+      className="text-gray-700 hover:text-pink-500 transition-colors"
+    >
+      Courses
+    </button>
+  )}
+
+  {/* Notification bell */}
+  {isAuthed && <NotificationBell />}
+</div>
 
           {/* CTAs */}
           <div className="flex items-center gap-3">
@@ -142,14 +152,23 @@ const isAuthed = isAuthenticated;
             </button>
 
             {/* Mobile menu button */}
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="md:hidden ml-1 inline-flex items-center justify-center rounded-xl border border-pink-100 bg-white/70 px-3 py-2 shadow-sm hover:bg-white transition"
-              aria-label="Open menu"
-            >
-              <i className="fa-solid fa-bars text-gray-700" />
-            </button>
+<button
+  type="button"
+  onClick={() => setMobileOpen(true)}
+  className="md:hidden ml-1 inline-flex items-center justify-center rounded-xl border border-pink-100 bg-white/70 px-3 py-2 shadow-sm hover:bg-white transition"
+  aria-label="Open menu"
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-5 w-5 text-gray-700"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+</button>
           </div>
         </div>
       </div>
@@ -175,13 +194,36 @@ const isAuthed = isAuthenticated;
             aria-label="Close menu"
             className="inline-flex items-center justify-center rounded-lg border border-pink-100 bg-white/70 p-2 hover:bg-white transition"
           >
-            <i className="fa-solid fa-xmark text-gray-700" />
+            <svg
+  xmlns="http://www.w3.org/2000/svg"
+  className="h-5 w-5 text-gray-700"
+  fill="none"
+  viewBox="0 0 24 24"
+  stroke="currentColor"
+  strokeWidth="2"
+>
+  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6" />
+</svg>
           </button>
         </div>
 
         <nav className="px-4 py-3">
 
           <div className="my-3 h-px bg-pink-100" />
+
+          {/* Courses */}
+{isAuthed && (
+  <button
+    onClick={() => {
+      setMobileOpen(false);
+      navigate("/tracks");
+    }}
+    className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-gray-800 hover:bg-pink-50"
+  >
+    <i className="fa-solid fa-book-open text-gray-600" />
+    <span>Courses</span>
+  </button>
+)}
 
           <button
             onClick={goDashOrLogin}

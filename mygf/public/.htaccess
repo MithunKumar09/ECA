@@ -44,12 +44,16 @@
     RewriteRule ^ - [L]
 
     # Handle /home route - serve static HTML file from html-pages
-    RewriteCond %{REQUEST_URI} ^/home/?$
-    RewriteRule ^home/?$ /home.html [L]
+    # RewriteCond %{REQUEST_URI} ^/home/?$
+    # RewriteRule ^home/?$ /home.html [L]
 
     # EXCLUDE: Don't rewrite HTML files (serve them directly)
-    RewriteCond %{REQUEST_URI} \.html$ [NC]
-    RewriteRule ^ - [L]
+    # RewriteCond %{REQUEST_URI} \.html$ [NC]
+    # RewriteRule ^ - [L]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
 
     # EXCLUDE: Don't rewrite if it's already index.html
     RewriteCond %{REQUEST_URI} ^/index\.html$

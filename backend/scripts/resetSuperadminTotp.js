@@ -5,7 +5,7 @@ import User from "../src/models/User.js";
 
 (async function run() {
   await connectMongo();
-  const email = env("SUPERADMIN_EMAIL", "mithunkumarkulal33@gmail.com");
+  const email = env("SUPERADMIN_EMAIL", "erptech.mygangoor@gmail.com");
   const u = await User.findOne({ email });
   if (!u) throw new Error("Superadmin not found");
   u.mfa = { required: true, method: "totp", totpSecretHash: null, emailOtp: null };

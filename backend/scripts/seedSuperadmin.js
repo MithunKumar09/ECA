@@ -8,8 +8,8 @@ import User from "../src/models/User.js";
   try {
     await connectMongo();
 
-    const email = env("SUPERADMIN_EMAIL", "superadmin@example.com");
-    const pass = env("SUPERADMIN_PASSWORD", "ChangeMe123!");
+    const email = env("SUPERADMIN_EMAIL", "erptech.mygangoor@gmail.com");
+    const pass = env("SUPERADMIN_PASSWORD", "Mygangoor@123");
     const passwordHash = await bcrypt.hash(pass, 10);
 
     let user = await User.findOne({ email });
