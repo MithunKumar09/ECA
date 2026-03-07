@@ -215,18 +215,17 @@ export default function CourseCard({
           </button>
 
           {/* NEW: View Detail button right after Preview */}
-            <button
-              className="border border-slate-300 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
-              aria-label={`View details for ${course.title}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Navigate to plain HTML classes-details page with course ID as param
-                window.location.href = `/static/classes-details.html?id=${course.id}`;
-              }}
-            >
-              View Detail
-            </button>
+<button
+  className="border border-slate-300 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+  aria-label={`View details for ${course.title}`}
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/course/${course.id}`);
+  }}
+>
+  View Detail
+</button>
           </div>
           <span className="text-xs text-slate-500">{course.durationHours}h</span>
         </div>

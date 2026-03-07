@@ -1,5 +1,5 @@
 // backend/src/controllers/authController.js
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import crypto from "crypto";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";

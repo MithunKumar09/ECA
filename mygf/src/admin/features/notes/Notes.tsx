@@ -1,5 +1,5 @@
 // src/admin/features/notes/Notes.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listCourses } from "../../api/courses";
 import type { Course } from "../../types/course";
@@ -69,6 +69,7 @@ export default function NotesFeature() {
   const [editing, setEditing] = useState<Note | null>(null);
   const [eTitle, setETitle] = useState("");
   const [eHtml, setEHtml] = useState(""); // only for rich notes
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // --- data ---
   const { data: coursesResp } = useQuery({
@@ -324,12 +325,13 @@ export default function NotesFeature() {
             </div>
             <div>
               <Label>PDF file</Label>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={onPdfFileChange}
-                className="block w-full text-sm"
-              />
+<input
+  ref={fileInputRef}
+  type="file"
+  accept="application/pdf"
+  onChange={onPdfFileChange}
+  className="hidden"
+/>
               {pdfFile && (
                 <div className="text-xs text-slate-600 mt-1">
                   Selected: <b>{pdfFile.name}</b> {Math.round(pdfFile.size / 1024)} KB
@@ -342,15 +344,22 @@ export default function NotesFeature() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button
-                variant="secondary"
-                onClick={async () => {
-                  if (!pdfFile) return toast.error("Choose a PDF file first.");
-                  await ensurePdfUploaded();
-                  if (pdfMeta?.url) toast.success("PDF uploaded");
-                }}
-                disabled={!pdfFile || pdfUploading}
-              >
+<Button
+  variant="secondary"
+  onClick={async () => {
+    // If no file selected → open file browser
+    if (!pdfFile) {
+      fileInputRef.current?.click();
+      return;
+    }
+    
+
+    // If file selected → upload
+    await ensurePdfUploaded();
+    if (pdfMeta?.url) toast.success("PDF uploaded");
+  }}
+  disabled={pdfUploading}
+>
                 {pdfUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <File className="w-4 h-4" />}
                 {pdfUploading ? "Uploading…" : "Upload PDF"}
               </Button>

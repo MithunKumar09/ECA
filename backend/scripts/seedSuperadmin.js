@@ -1,5 +1,5 @@
 // backend/scripts/seedSuperadmin.js  (ESM)
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { connectMongo, disconnectMongo } from "../src/config/mongo.js";
 import { env } from "../src/config/env.js";
 import User from "../src/models/User.js";
@@ -8,8 +8,8 @@ import User from "../src/models/User.js";
   try {
     await connectMongo();
 
-    const email = env("SUPERADMIN_EMAIL", "erptech.mygangoor@gmail.com");
-    const pass = env("SUPERADMIN_PASSWORD", "Mygangoor@123");
+    const email = env("SUPERADMIN_EMAIL", "mygangoor.erptech@gmail.com");
+    const pass = env("SUPERADMIN_PASSWORD", "Guruji@2026");
     const passwordHash = await bcrypt.hash(pass, 10);
 
     let user = await User.findOne({ email });

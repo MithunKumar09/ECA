@@ -1,5 +1,5 @@
 // backend/src/controllers/saUsersController.js
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import crypto from "crypto";
 import User from "../models/User.js";
 import Invitation from "../models/Invitation.js";
