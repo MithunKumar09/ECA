@@ -41,12 +41,22 @@ export async function fetchCoursesPage({
   let next = cursor ?? undefined;
   let guard = 0;
 
-  const acceptRaw = (it: any) => {
-    const rawOrg = it?.orgId ?? null;
-    if (audience === "public") return rawOrg == null;
-    if (audience === "org")    return orgId && String(rawOrg || "") === String(orgId);
-    return true;
-  };
+const acceptRaw = (it: any) => {
+  const rawOrg = it?.orgId ?? null;
+
+  // Public users → only global courses
+  if (audience === "public") {
+    return rawOrg == null;
+  }
+
+  // Org users → org courses + global courses
+  if (audience === "org") {
+    if (rawOrg == null) return true; // global
+    return orgId && String(rawOrg) === String(orgId);
+  }
+
+  return true;
+};
 
   while (accepted.length < limit && guard < 10) {
     let payload: RawCardsResponse = { items: [], nextCursor: null };

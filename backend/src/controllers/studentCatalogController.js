@@ -39,9 +39,19 @@ export async function listCourses(req, res) {
     // 🔑 Audience rule:
     // - orgId present  -> org courses (published)
     // - no orgId       -> global public courses (published)
-    const query = orgId
-      ? { orgId, status: "published" }
-      : { orgId: null, visibility: "public", status: "published" };
+const query = orgId
+  ? {
+      $or: [
+        { orgId: new mongoose.Types.ObjectId(orgId) }, // org courses
+        { orgId: null }                                // global courses
+      ],
+      status: "published"
+    }
+  : {
+      orgId: null,
+      visibility: "public",
+      status: "published"
+    };
 
     const docs = await Course.find(query)
       .select(
