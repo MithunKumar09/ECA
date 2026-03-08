@@ -13,6 +13,9 @@ const EnrollmentSchema = new mongoose.Schema({
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 }, { timestamps: true });
 
-EnrollmentSchema.index({ studentId: 1, courseId: 1, orgId: 1 }, { unique: true });
+EnrollmentSchema.index(
+  { studentId: 1, courseId: 1, orgId: 1 },
+  { unique: true }
+);
 
 export default mongoose.models.Enrollment ?? mongoose.model("Enrollment", EnrollmentSchema);

@@ -63,7 +63,7 @@ const query = orgId
           "duration","durationHours","createdAt","updatedAt",
         ].join(" ")
       )
-      .sort({ createdAt: -1 })
+      .sort({ orgId: -1, createdAt: -1 })
       .lean();
 
     const items = docs.map((c) => {

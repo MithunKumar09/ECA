@@ -44,5 +44,10 @@ const PaymentSchema = new mongoose.Schema({
 PaymentSchema.index({ orgId: 1, courseId: 1, studentId: 1 });
 PaymentSchema.index({ providerOrderId: 1 }, { unique: false });
 PaymentSchema.index({ providerPaymentId: 1 }, { unique: false });
+PaymentSchema.index(
+  { providerOrderId: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "captured" } }
+);
+PaymentSchema.index({ providerOrderId: 1, createdAt: -1 });
 
 export default mongoose.models.Payment ?? mongoose.model("Payment", PaymentSchema);
