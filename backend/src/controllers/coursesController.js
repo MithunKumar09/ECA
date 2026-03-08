@@ -61,7 +61,12 @@ export async function list(req, res) {
   if (!actor?.orgId) return res.status(403).json({ ok: false, message: "No org" });
 
   const { q, status = "all", page, limit } = req.query || {};
-  const and = [{ orgId: actor.orgId }];
+  const and = [{
+  $or: [
+    { orgId: actor.orgId },   // org courses
+    { orgId: null }           // global courses
+  ]
+}];
 
   if (q) {
     const rx = { $regex: String(q), $options: "i" };

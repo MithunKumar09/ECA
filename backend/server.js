@@ -358,7 +358,13 @@ app.use("/api/student/notes", studentNotesRouter);
 // Serve React SPA build (if present) and provide history fallback for SPA routes
 const spaDistDir = path.join(process.cwd(), "mygf", "dist");
 if (fs.existsSync(spaDistDir)) {
-  app.use(express.static(spaDistDir));
+  app.use(express.static(spaDistDir, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith(".mjs")) {
+        res.setHeader("Content-Type", "application/javascript");
+      }
+    }
+  }));
 
   app.get("*", (req, res, next) => {
     // Skip API and static asset paths

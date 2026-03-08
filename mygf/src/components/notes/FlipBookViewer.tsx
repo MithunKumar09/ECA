@@ -27,12 +27,13 @@ export default function FlipBookViewer({
     let cancelled = false;
     (async () => {
       try {
-        const [{ default: ReactPageFlip }, pdfjs] = await Promise.all([
-          import("react-pageflip"),
-          import("pdfjs-dist"),
-        ]);
-        const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+const [{ default: ReactPageFlip }, pdfjs] = await Promise.all([
+  import("react-pageflip"),
+  import("pdfjs-dist"),
+]);
+
+pdfjs.GlobalWorkerOptions.workerSrc =
+  new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
         if (!cancelled) {
           setPageFlip(ReactPageFlip);
           setPdfjsLib(pdfjs);
@@ -70,6 +71,7 @@ export default function FlipBookViewer({
           } else if (kind === "pdf") {
             // Always fetch a fresh signed URL (works for both public & authenticated assets)
   const { url } = await getStudentNotePdfUrl(n.id);   // <- destructure
+  console.log("SIGNED PDF URL:", url);
   const loadingTask = pdfjsLib.getDocument(url); 
             const pdfDoc = await loadingTask.promise;
             const count = pdfDoc.numPages;
