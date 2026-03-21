@@ -41,17 +41,19 @@ export async function totpVerify(params: { code: string; mfaTempToken: string })
 }
 
 export async function checkSession(): Promise<{ ok: boolean; user?: unknown }> {
-  // Note: backend /auth/check never performs refresh by design.
-  // We implement enterprise-grade stability by attempting ONE silent refresh
-  // when check says unauthenticated, then retrying check once.
-  const { data } = await api.get('auth/check'); // withCredentials already true
+  // PHASE 7 support: /auth/check now returns HTTP 401 when unauthenticated.
+  // validateStatus accepts 4xx so axios never throws and the response
+  // interceptor never fires for this endpoint — checkSession owns the retry.
+  const opts = { validateStatus: (s: number) => s < 500 };
+
+  const { data } = await api.get('auth/check', opts);
   if (data?.ok) return data;
 
   const refreshed = await refreshOnce().catch(() => false);
-  if (!refreshed) return data;
+  if (!refreshed) return { ok: false };
 
-  const again = await api.get('auth/check');
-  return again.data;
+  const again = await api.get('auth/check', opts);
+  return again.data ?? { ok: false };
 }
 
 export async function refresh(): Promise<{ ok: boolean; accessToken?: string }> {

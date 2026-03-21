@@ -109,8 +109,8 @@ export async function create(req, res) {
 
     let teacherObjectId = null; 
   if (teacherId) { 
-    // Verify teacher belongs to same org and is a vendor (treated as teacher) 
-    const teacher = await User.findOne({ _id: teacherId, orgId: actor.orgId, role: "vendor" }).select("_id"); 
+    // Verify teacher belongs to same org and has teacher role (accepts both during migration)
+    const teacher = await User.findOne({ _id: teacherId, orgId: actor.orgId, role: { $in: ["teacher", "vendor"] } }).select("_id");
     teacherObjectId = teacher ? teacher._id : null; 
   }
 
@@ -125,10 +125,10 @@ export async function create(req, res) {
     status: status || "draft",
     orgId: actor.orgId,
 
-    // Ownership: ownerId = admin for attribution, createdById = who actually created (admin or vendor)
-    ownerId: actor.role === "vendor" ? (actor.managerId || null) : (actor._id || actor.sub || null),
+    // Ownership: ownerId = admin for attribution, createdById = who actually created (admin or teacher)
+    ownerId: (actor.role === "teacher" || actor.role === "vendor") ? (actor.managerId || null) : (actor._id || actor.sub || null),
     createdById: actor._id || actor.sub,
-    managerId: actor.role === "vendor" ? (actor.managerId || null) : null,
+    managerId: (actor.role === "teacher" || actor.role === "vendor") ? (actor.managerId || null) : null,
 
     courseType: (courseType === "free" ? "free" : "paid"), 
     durationText: typeof durationText === "string" ? durationText : "", 
@@ -199,9 +199,9 @@ export async function patch(req, res) {
   }
 
   // Validate teacherId if provided 
-  if (patch.teacherId) { 
-    const v = await User.findOne({ _id: patch.teacherId, orgId: actor.orgId, role: "vendor" }).select("_id"); 
-    patch.teacherId = v ? v._id : null; 
+  if (patch.teacherId) {
+    const v = await User.findOne({ _id: patch.teacherId, orgId: actor.orgId, role: { $in: ["teacher", "vendor"] } }).select("_id");
+    patch.teacherId = v ? v._id : null;
   }
   // allow NEW bundle-level fields with validation
   if (Number.isFinite(req.body?.discountPercent)) {
@@ -254,7 +254,7 @@ export async function remove(req, res) {
   const doc = await Course.findOne({ _id: id, orgId: actor.orgId });
   if (!doc) return res.status(404).json({ ok: false });
 
-  // SA/global course cannot be deleted by org admins/vendors
+  // SA/global course cannot be deleted by org admins/teachers
   if (!doc.orgId && actor.role !== "superadmin") {
     return res.status(403).json({ ok: false, message: "Cannot delete global course" });
   }
@@ -323,11 +323,11 @@ export async function bulkUpsert(req, res) {
       if (r.teacherId) { 
         patch.teacherId = r.teacherId; 
       } else if (r.teacherEmail) { 
-        const t = await User.findOne({ 
-          email: String(r.teacherEmail).toLowerCase(), 
-          orgId: actor.orgId, 
-          role: "vendor", 
-        }).select("_id"); 
+        const t = await User.findOne({
+          email: String(r.teacherEmail).toLowerCase(),
+          orgId: actor.orgId,
+          role: { $in: ["teacher", "vendor"] },
+        }).select("_id");
         patch.teacherId = t ? t._id : null; 
       }
 
@@ -339,9 +339,9 @@ export async function bulkUpsert(req, res) {
         await Course.create({
           ...patch,
           orgId: actor.orgId,
-          ownerId: actor.role === "vendor" ? (actor.managerId || null) : (actor._id || actor.sub || null),
+          ownerId: (actor.role === "teacher" || actor.role === "vendor") ? (actor.managerId || null) : (actor._id || actor.sub || null),
           createdById: actor._id || actor.sub,
-          managerId: actor.role === "vendor" ? (actor.managerId || null) : null,
+          managerId: (actor.role === "teacher" || actor.role === "vendor") ? (actor.managerId || null) : null,
         });
         created++;
       }

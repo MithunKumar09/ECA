@@ -27,7 +27,10 @@ function now() { return Date.now(); }
 function getJson<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return null;
+    // PHASE 9: guard against both absent values and the serialised string
+    // "null" (produced by JSON.stringify(null)) which would otherwise parse
+    // successfully but return null and confuse callers expecting an object.
+    if (!raw || raw === "null") return null;
     return JSON.parse(raw) as T;
   } catch {
     return null;

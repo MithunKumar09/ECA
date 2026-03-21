@@ -1,98 +1,141 @@
 // backend/src/utils/cookies.js
 
-// Parse a JWT-style TTL string ("15m", "1h", "30d") into milliseconds.
-// Falls back to 1 hour so behaviour is unchanged if ACCESS_TTL is not set.
+// ---------------------------------------------------------------------------
+// PHASE 6: parseTtlMs — emits a warning on invalid TTL so misconfiguration
+// is caught at startup rather than failing silently with a wrong maxAge.
+// ---------------------------------------------------------------------------
 function parseTtlMs(ttl) {
   const match = String(ttl || "").match(/^(\d+)(s|m|h|d)$/);
-  if (!match) return 60 * 60 * 1000; // default 1 h
+  if (!match) {
+    console.warn("[cookies] Invalid TTL format (expected e.g. '30d', '1h'):", ttl);
+    return 60 * 60 * 1000; // default 1 h
+  }
   const n = parseInt(match[1], 10);
   const units = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 };
   return n * units[match[2]];
 }
 
 export function setAuthCookies(req, res, { accessToken, refreshToken }) {
-  // Are we effectively on HTTPS at the edge?
-  // Works behind proxies (Cloudflare, dev reverse proxies) and locally.
+  // -----------------------------------------------------------------
+  // PHASE 1: variable order — compute in strict dependency sequence.
+  // useHostPrefix must be known BEFORE sameSite so Phase 2 can use it.
+  //
+  // ORDER:
+  //   1. viaHttps
+  //   2. secure
+  //   3. useHostPrefix
+  //   4. sameSite logic
+  // -----------------------------------------------------------------
+
+  // 1. viaHttps — HTTPS detection, works behind Cloudflare / Nginx proxy.
   const viaHttps =
     req?.secure === true ||
     String(req?.headers?.["x-forwarded-proto"] || "").toLowerCase().includes("https");
 
-  // If you are serving frontend and backend from different sites/origins, set CROSS_SITE=1
-  const wantsCrossSite = process.env.CROSS_SITE === "1";
+  // 2. secure
+  const secure = !!viaHttps;
 
-  // Compute attributes
-  let secure = !!viaHttps;                  // only mark Secure if the request reached us over HTTPS
-  let sameSite = wantsCrossSite ? "none" : "lax";
-
-  // Browsers REQUIRE Secure when SameSite=None, otherwise cookie is dropped.
-  if (sameSite === "none" && !secure) {
-    // Fall back to Lax in non-HTTPS situations to ensure cookies stick in dev.
-    sameSite = "lax";
-  }
-
-  // In development, always use non-Host prefixed cookies to avoid issues
-  const isDev = process.env.NODE_ENV !== "production";
-  const useHostPrefix = secure && !isDev; // __Host-* is valid only with Secure + Path=/ and no Domain
+  // 3. useHostPrefix — purely HTTPS-driven; __Host-* is a browser security
+  // feature (requires Secure + Path=/ + no Domain), so it applies whenever
+  // the request arrived over HTTPS regardless of NODE_ENV.
+  // Previous value was `secure && !isDev`; the !isDev guard is removed
+  // so that HTTPS dev environments also benefit from __Host-* protection.
+  const useHostPrefix = secure;
   const sessionName = useHostPrefix ? "__Host-session" : "sid";
   const refreshName = useHostPrefix ? "__Host-refresh" : "sr";
+
+  // 4. PHASE 2: production-grade SameSite policy.
+  //    HTTPS (useHostPrefix=true) → "strict": strongest standard, no
+  //    cross-site leakage. HTTP / cross-site → preserve existing lax/none.
+  const wantsCrossSite = process.env.CROSS_SITE === "1";
+  let sameSite;
+  if (useHostPrefix) {
+    sameSite = "strict"; // production standard on HTTPS
+  } else {
+    sameSite = wantsCrossSite ? "none" : "lax";
+  }
+  // Browsers DROP SameSite=None without Secure — fall back to Lax in HTTP.
+  if (sameSite === "none" && !secure) {
+    sameSite = "lax";
+  }
 
   const base = {
     httpOnly: true,
     secure,
-    sameSite,  // 'lax' for same-site (dev) or 'none' for cross-site over HTTPS
-    path: "/", // host-only cookie (no Domain) so it can qualify for __Host-* in prod
+    sameSite,
+    path: "/", // no Domain attribute — qualifies for __Host-* in prod
   };
 
-  // Debug logging for cookie setting
   if (process.env.DEBUG_AUTH === "1") {
-    console.log("[cookies] Setting auth cookies:", {
-      viaHttps,
-      secure,
-      sameSite,
-      isDev,
-      useHostPrefix,
-      sessionName,
-      refreshName,
+    console.log("[cookies] setAuthCookies:", {
+      viaHttps, secure, sameSite, useHostPrefix, sessionName, refreshName,
       accessTokenLength: accessToken?.length || 0,
-      refreshTokenLength: refreshToken?.length || 0
+      refreshTokenLength: refreshToken?.length || 0,
     });
   }
 
-  // Derive cookie maxAge from the same ACCESS_TTL env var used to sign the JWT,
-  // so the cookie and the token expire at the same time.
+  // Derive access-cookie maxAge from the same TTL used to sign the JWT.
   const accessMaxAge = parseTtlMs(process.env.ACCESS_TTL || "1h");
 
-  res.cookie(sessionName, accessToken, {
-    ...base,
-    maxAge: accessMaxAge,
-  });
+  res.cookie(sessionName, accessToken, { ...base, maxAge: accessMaxAge });
 
+  // PHASE 5: config-driven refresh TTL via REFRESH_TTL env var (default 30d).
+  // Keeps the cookie lifetime consistent with the signed JWT TTL.
   res.cookie(refreshName, refreshToken, {
     ...base,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days (refresh token TTL)
+    maxAge: parseTtlMs(process.env.REFRESH_TTL || "30d"),
   });
 
-    // DEV-ONLY: mirror the access token into a readable cookie so the SPA can send Authorization 
-  // Never enable this in production. 
-  if (process.env.NODE_ENV !== "production") { 
-    res.cookie("access", accessToken, { 
-      httpOnly: false,          // readable by frontend 
-      secure: false,            // dev http/https both OK 
-      sameSite: "lax", 
-      path: "/", 
-      maxAge: 60 * 60 * 1000, // 1 hour (access token TTL)
-    }); 
+  // -----------------------------------------------------------------
+  // PHASE 3: cross-clear the OPPOSITE cookie set so the browser never
+  // accumulates both __Host-* (HTTPS) and sid/sr (HTTP) simultaneously.
+  //
+  // clearAllVariants covers every attribute combination a previous session
+  // could have used — including the new SameSite=Strict added in Phase 2
+  // (a plain path-only clear is required for that variant).
+  // -----------------------------------------------------------------
+  const clearAllVariants = (name) => {
+    res.clearCookie(name, { path: "/", sameSite: "lax",   secure: false });
+    res.clearCookie(name, { path: "/", sameSite: "none",  secure: true  });
+    res.clearCookie(name, { path: "/" }); // covers SameSite=Strict (Phase 2)
+  };
+
+  if (useHostPrefix) {
+    // Active set: __Host-* → expire HTTP dev alternatives.
+    clearAllVariants("sid");
+    clearAllVariants("sr");
+  } else {
+    // Active set: sid/sr → expire HTTPS prod alternatives.
+    clearAllVariants("__Host-session");
+    clearAllVariants("__Host-refresh");
+  }
+
+  // -----------------------------------------------------------------
+  // PHASE 4: dev-only access-token mirror.
+  // Changed from `NODE_ENV !== "production"` to `DEBUG_AUTH === "1"`.
+  // The access token MUST NOT be exposed in a readable cookie by default,
+  // even in staging or non-production environments. Only expose it when
+  // the operator explicitly enables debug mode.
+  // -----------------------------------------------------------------
+  if (process.env.DEBUG_AUTH === "1") {
+    res.cookie("access", accessToken, {
+      httpOnly: false, // intentionally readable by the SPA for dev tooling
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: accessMaxAge, // mirrors the JWT TTL (was hardcoded 1 h)
+    });
   }
 }
 
 export function clearAuthCookies(res) {
-  // Clear both prod (__Host-*) and dev (sid/sr) names.
-  // Use both attribute combinations to ensure deletion regardless of how they were set.
+  // PHASE 3: use 3-variant clearing across all cookie names so deletion
+  // succeeds regardless of which attribute set was used when the cookie
+  // was originally written (lax, none+secure, or strict from Phase 2).
   const clear = (name) => {
-    // Cookies set without SameSite=None (typical dev)
-    res.clearCookie(name, { path: "/", sameSite: "lax", secure: false });
-    // Cookies set with SameSite=None; Secure (prod/cross-site)
-    res.clearCookie(name, { path: "/", sameSite: "none", secure: true });
+    res.clearCookie(name, { path: "/", sameSite: "lax",   secure: false });
+    res.clearCookie(name, { path: "/", sameSite: "none",  secure: true  });
+    res.clearCookie(name, { path: "/" }); // covers SameSite=Strict
   };
 
   clear("__Host-session");

@@ -2,7 +2,7 @@
 import { api } from './client'
 import type { SAUser, UserStatus } from '../types/user'
 
-export type AdminUserRole = 'vendor' | 'student'
+export type AdminUserRole = 'teacher' | 'vendor' | 'student'
 export type AdminMfa = { required: boolean; method: 'otp' | 'totp' | null }
 
 // Narrow SAUser.role and add mfa (returned by backend for vendor/student)
@@ -37,7 +37,7 @@ export async function listAdUsers(filters: AdminUserFilters) {
 }
 
 export async function createAdUser(payload: CreateAdminUserPayload) {
-  // vendor → returns AdminUser, student invite → { ok: true }
+  // teacher → returns AdminUser, student invite → { ok: true }
   const r = await api.post('/ad/users', payload);
   return r.data as AdminUser | { ok: true; };
 }

@@ -69,16 +69,33 @@ api.interceptors.response.use(
     const cfg: any = err.config || {};
     const status = res?.status ?? 0;
 
-    const isRefresh = (cfg?: any) => (cfg?.url || '').toString().includes('/auth/refresh');
+    // Never apply refresh-retry logic to auth-management endpoints themselves.
+    // /auth/refresh  – would cause infinite loop
+    // /auth/logout   – session is already being torn down
+    // /auth/check    – handled internally by checkSession() with validateStatus
+    const url = (cfg?.url || '').toString();
+    const isAuthMgmt = url.includes('/auth/refresh') ||
+                       url.includes('/auth/logout') ||
+                       url.includes('/auth/check');
 
-    // Only handle typical auth-expiry codes and never loop or touch /auth/refresh itself
-    if (!cfg || cfg.__retried || isRefresh(cfg) || (status !== 401 && status !== 419)) {
+    // Only handle typical auth-expiry codes and never loop on auth management endpoints
+    if (!cfg || cfg.__retried || isAuthMgmt || (status !== 401 && status !== 419)) {
       throw err;
     }
 
     // Single-flight, shared across the whole app
     const ok = await refreshOnce();
-    if (!ok) throw err;
+
+    // PHASE 1: Refresh failed permanently — the session is gone.
+    // Force logout to clear stale UI state and redirect to /login.
+    // Use dynamic import to avoid circular-dependency at module init time:
+    //   store.ts → api/auth.ts → client.ts → (lazy) store.ts
+    // Return a never-settling promise so the original caller's chain is
+    // silently abandoned while logout() navigates the page away.
+    if (!ok) {
+      import('../auth/store').then(({ useAuth }) => useAuth.getState().logout()).catch(() => {});
+      return new Promise(() => {});
+    }
 
     cfg.__retried = true;
 

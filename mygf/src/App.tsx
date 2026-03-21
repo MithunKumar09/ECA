@@ -1,6 +1,8 @@
 //`src/App.tsx`
 import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./auth/store";
+import { checkSession } from "./api/auth";
 import RequireOrgUser from "./auth/RequireOrgUser";
 import { NotificationsProvider } from "./hooks/useNotifications";
 import ReminderPopup from "./components/notifications/ReminderPopup";
@@ -24,6 +26,7 @@ import SignIn from "./components/screens/SignIn";
 import SuperadminLayout from "./admin/layouts/SuperadminLayout";
 import AdminLayout from "./admin/layouts/AdminLayout";
 import VendorLayout from "./admin/layouts/VendorLayout";
+import TeacherLayout from "./admin/layouts/TeacherLayout";
 
 // Superadmin pages
 import SAOverview from "./admin/pages/superadmin/Overview";
@@ -79,6 +82,9 @@ import VEStudents from "./admin/pages/vendor/Students";
 // ---------- Centralized guards ----------
 import Shell from "./shell";
 
+// PHASE 2: poll interval in ms — check session every 4 minutes.
+const SESSION_POLL_MS = 4 * 60 * 1000;
+
 export default function App() {
   // Remove the static HTML splash screen after React's first paint.
   // The CSS transition on #splash gives a smooth 350 ms fade-out.
@@ -88,6 +94,48 @@ export default function App() {
     splash.classList.add("splash-hide");
     const timer = setTimeout(() => splash.remove(), 380);
     return () => clearTimeout(timer);
+  }, []);
+
+  // PHASE 6: cross-tab logout sync.
+  // When logout() in any tab writes "auth:logout" to localStorage, the
+  // storage event fires in every OTHER open tab. The handler calls logout()
+  // in that tab, which clears state and navigates to /login.
+  // Guard: only act when this tab still has an authenticated user — prevents
+  // cascading re-calls on tabs that are already logged out.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== "auth:logout") return;
+      const state = useAuth.getState();
+      if (!state.user) return; // already logged out in this tab
+      state.logout();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // PHASE 2: background session poll — detects server-side revocation or
+  // expiry without waiting for the user to make an API call.
+  // Uses checkSession() directly (not hydrate()) to avoid flipping
+  // status → "checking", which would flash a "Loading…" screen.
+  // The response interceptor (Phase 1) handles logout if any *other*
+  // API call gets a permanent 401; this poller covers the idle-user case.
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const { user, status } = useAuth.getState();
+      // Only poll while authenticated and auth state is stable.
+      if (!user || status !== "ready") return;
+      try {
+        const res = await checkSession();
+        if (res && !res.ok) {
+          // Both /auth/check and the silent refresh inside checkSession failed.
+          useAuth.getState().logout();
+        }
+      } catch {
+        // Interceptor (Phase 1) may have already triggered logout.
+        // Any other transient error (network, timeout) is intentionally ignored.
+      }
+    }, SESSION_POLL_MS);
+    return () => clearInterval(id);
   }, []);
 
   return (
@@ -124,7 +172,7 @@ export default function App() {
       <Route
         path="/dashboard"
         element={
-          <Shell allowedRoles={["student", /^org/i]} requireMfaIf={(r) => r === "vendor"}>
+          <Shell allowedRoles={["student", /^org/i]} requireMfaIf={(r) => r === "teacher" || r === "vendor"}>
             <StudentDashboard />
           </Shell>
         }
@@ -195,11 +243,30 @@ export default function App() {
         <Route path="notes" element={<ADNotes />} />
       </Route>
 
-            {/* ---------- Org Admin area (guarded by Shell) ---------- */}
+            {/* ---------- Teacher area (primary — guarded by Shell) ---------- */}
+      <Route
+        path="/teacher"
+        element={
+          <Shell allowedRoles={["teacher", "vendor"]}>
+            <TeacherLayout />
+          </Shell>
+        }
+      >
+        <Route index element={<Navigate to="overview" replace />} />
+        <Route path="overview" element={<VEOverview />} />
+        <Route path="courses" element={<VECourses />} />
+        <Route path="reports" element={<VEReports />} />
+        <Route path="assessments" element={<VEAssessments />} />
+        <Route path="payments" element={<VEPayments />} />
+        <Route path="notes" element={<VENotes />} />
+        <Route path="students" element={<VEStudents />} />
+      </Route>
+
+      {/* ---------- Vendor area (backward compat — same layout, redirects not needed) ---------- */}
       <Route
         path="/vendor"
         element={
-          <Shell allowedRoles={["vendor"]}>
+          <Shell allowedRoles={["vendor", "teacher"]}>
             <VendorLayout />
           </Shell>
         }

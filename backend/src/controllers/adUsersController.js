@@ -30,9 +30,11 @@ export async function list(req, res) {
     {
       role:
         role === 'all'
-          ? { $in: ['vendor', 'orguser'] }
+          ? { $in: ['teacher', 'vendor', 'orguser'] }
           : role === 'student'
           ? 'orguser'
+          : role === 'teacher'
+          ? { $in: ['teacher', 'vendor'] }
           : role,
     },
   ];
@@ -91,7 +93,7 @@ export async function create(req, res) {
     console.warn("[adUsers.create] Missing required fields:", { email: !!email, role: !!inputRole });
     return res.status(400).json({ ok:false, message:"email and role required" });
   }
-  if (!['vendor','student'].includes(inputRole)) {
+  if (!['teacher','student'].includes(inputRole)) {
     console.warn("[adUsers.create] Invalid role:", inputRole);
     return res.status(400).json({ ok:false, message:"invalid role" });
   }
@@ -125,7 +127,7 @@ export async function create(req, res) {
 
   // For "student" inputs, assign the organisation-member role "orguser".
   // This keeps the learner type but records them as an organisation user for access
-  // control.  Vendors remain vendors.
+  // control.  Teachers remain teachers.
   const role = inputRole === 'student' ? 'orguser' : inputRole;
 
   // Check if user already exists (case-insensitive email check)
@@ -136,7 +138,7 @@ export async function create(req, res) {
     });
     
     if (exists) {
-      const roleDisplayName = exists.role === 'orguser' ? 'Student' : exists.role === 'vendor' ? 'Vendor' : exists.role === 'admin' ? 'Admin' : exists.role;
+      const roleDisplayName = exists.role === 'orguser' ? 'Student' : (exists.role === 'teacher' || exists.role === 'vendor') ? 'Teacher' : exists.role === 'admin' ? 'Admin' : exists.role;
       const statusDisplayName = exists.status === 'active' ? 'Active' : exists.status === 'inactive' ? 'Inactive' : exists.status === 'pending' ? 'Pending' : exists.status;
       
       console.error("[adUsers.create] ❌ User already exists (case-insensitive match):", {
@@ -204,7 +206,7 @@ export async function create(req, res) {
       });
       
       if (exists) {
-        const roleDisplayName = exists.role === 'orguser' ? 'Student' : exists.role === 'vendor' ? 'Vendor' : exists.role === 'admin' ? 'Admin' : exists.role;
+        const roleDisplayName = exists.role === 'orguser' ? 'Student' : (exists.role === 'teacher' || exists.role === 'vendor') ? 'Teacher' : exists.role === 'admin' ? 'Admin' : exists.role;
         const statusDisplayName = exists.status === 'active' ? 'Active' : exists.status === 'inactive' ? 'Inactive' : exists.status === 'pending' ? 'Pending' : exists.status;
         
         return {
@@ -446,8 +448,8 @@ export async function create(req, res) {
 
   // --- Original Credentials Method (Keep Intact) ---
   try {
-    if (role === 'vendor') {
-      console.log("[adUsers.create] Creating vendor user...");
+    if (role === 'teacher') {
+      console.log("[adUsers.create] Creating teacher user...");
       const password = crypto.randomBytes(10).toString("base64").replace(/[^a-z0-9]/gi,'').slice(0,12) + "9!";
       const passwordHash = await bcrypt.hash(password, 10);
       
@@ -456,7 +458,7 @@ export async function create(req, res) {
         doc = await User.create({
           email: normalizedEmail, // Use normalized email
           name: name || null,
-          role: 'vendor', status: 'active',
+          role: 'teacher', status: 'active',
           orgId: scopeOrgId,
           managerId: actor.sub || actor._id || actor.id || null,
           invitedBy: actor.sub || actor._id || actor.id || null,
@@ -464,9 +466,9 @@ export async function create(req, res) {
           isVerified: false,
           passwordHash,
         });
-        console.log("[adUsers.create] ✅ Vendor user created:", { userId: doc._id, email: normalizedEmail });
+        console.log("[adUsers.create] ✅ Teacher user created:", { userId: doc._id, email: normalizedEmail });
       } catch (createError) {
-        console.error("[adUsers.create] ❌ Failed to create vendor user:", {
+        console.error("[adUsers.create] ❌ Failed to create teacher user:", {
           error: createError?.message,
           code: createError?.code,
           keyPattern: createError?.keyPattern,
@@ -483,12 +485,12 @@ export async function create(req, res) {
             console.warn("[adUsers.create] Could not lookup existing user:", lookupError?.message);
           }
           
-          const roleDisplayName = existingUser?.role === 'orguser' ? 'Student' : existingUser?.role === 'vendor' ? 'Vendor' : existingUser?.role === 'admin' ? 'Admin' : existingUser?.role || 'Unknown';
+          const roleDisplayName = existingUser?.role === 'orguser' ? 'Student' : (existingUser?.role === 'teacher' || existingUser?.role === 'vendor') ? 'Teacher' : existingUser?.role === 'admin' ? 'Admin' : existingUser?.role || 'Unknown';
           const statusDisplayName = existingUser?.status === 'active' ? 'Active' : existingUser?.status === 'inactive' ? 'Inactive' : existingUser?.status === 'pending' ? 'Pending' : existingUser?.status || 'Unknown';
           
           return res.status(409).json({ 
             ok: false, 
-            message: `Unable to create vendor: An account with email "${normalizedEmail}" already exists in the system.`,
+            message: `Unable to create teacher: An account with email "${normalizedEmail}" already exists in the system.`,
             error: "USER_EXISTS",
             errorCode: "EMAIL_ALREADY_REGISTERED",
             details: {
@@ -513,7 +515,7 @@ export async function create(req, res) {
       let emailError = null;
       try {
         await sendStaffCredentialsEmail(normalizedEmail, {
-          role: 'vendor', signinUrl: signInUrl, email: normalizedEmail, password,
+          role: 'teacher', signinUrl: signInUrl, email: normalizedEmail, password,
           mfaMethod: doc.mfa.method, mfaRequired: true,
           orgName, adminName: actor?.name || actor?.email,
         });
@@ -632,7 +634,7 @@ export async function create(req, res) {
           console.warn("[adUsers.create] Could not lookup existing user:", lookupError?.message);
         }
         
-        const roleDisplayName = existingUser?.role === 'orguser' ? 'Student' : existingUser?.role === 'vendor' ? 'Vendor' : existingUser?.role === 'admin' ? 'Admin' : existingUser?.role || 'Unknown';
+        const roleDisplayName = existingUser?.role === 'orguser' ? 'Student' : (existingUser?.role === 'teacher' || existingUser?.role === 'vendor') ? 'Teacher' : existingUser?.role === 'admin' ? 'Admin' : existingUser?.role || 'Unknown';
         const statusDisplayName = existingUser?.status === 'active' ? 'Active' : existingUser?.status === 'inactive' ? 'Inactive' : existingUser?.status === 'pending' ? 'Pending' : existingUser?.status || 'Unknown';
         
         return res.status(409).json({ 
@@ -775,7 +777,7 @@ export async function patch(req, res) {
     const { id } = req.params;
     if (!actor?.orgId) return res.status(403).json({ ok: false });
 
-    const u = await User.findOne({ _id: id, orgId: actor.orgId, role: { $in: ['vendor', 'orguser'] } });
+    const u = await User.findOne({ _id: id, orgId: actor.orgId, role: { $in: ['teacher', 'vendor', 'orguser'] } });
     if (!u) return res.status(404).json({ ok: false });
 
     const patch = {};
@@ -799,7 +801,7 @@ export async function setStatus(req, res) {
     if (!['active', 'disabled'].includes(status)) return res.status(400).json({ ok: false });
 
     const u = await User.findOneAndUpdate(
-        { _id: id, orgId: actor.orgId, role: { $in: ['vendor', 'orguser'] } },
+        { _id: id, orgId: actor.orgId, role: { $in: ['teacher', 'vendor', 'orguser'] } },
         { $set: { status } },
         { new: true }
     );
@@ -812,13 +814,13 @@ export async function setRole(req, res) {
     const actor = req.user;
     const { id } = req.params;
     const { role: inputRole } = req.body || {};
-    if (!['vendor', 'student'].includes(inputRole)) return res.status(400).json({ ok: false });
+    if (!['teacher', 'student'].includes(inputRole)) return res.status(400).json({ ok: false });
 
     // Map 'student' to 'orguser'
     const finalRole = inputRole === 'student' ? 'orguser' : inputRole;
 
     const u = await User.findOneAndUpdate(
-        { _id: id, orgId: actor.orgId, role: { $in: ['vendor', 'orguser'] } },
+        { _id: id, orgId: actor.orgId, role: { $in: ['teacher', 'vendor', 'orguser'] } },
         { $set: { role: finalRole } },
         { new: true }
     );
@@ -831,7 +833,7 @@ export async function remove(req, res) {
     const actor = req.user;
     const { id } = req.params;
 
-    const u = await User.findOne({ _id: id, orgId: actor.orgId, role: { $in: ['vendor', 'orguser'] } });
+    const u = await User.findOne({ _id: id, orgId: actor.orgId, role: { $in: ['teacher', 'vendor', 'orguser'] } });
     if (!u) return res.status(404).json({ ok: false });
 
     await User.deleteOne({ _id: id });
@@ -858,7 +860,9 @@ export async function bulkUpsert(req, res) {
   const truthy  = (v) => /^(true|1|yes|y)$/i.test(String(v||'').trim());
   const normRole = (v) => {
     const r = String(v||'').toLowerCase().trim();
-    return (r==='vendor' || r==='student') ? r : 'student';
+    if (r === 'teacher' || r === 'vendor') return 'teacher'; // accept both during migration
+    if (r === 'student') return 'student';
+    return 'student';
   };
   const normStatus = (v) => {
     const s = String(v||'').toLowerCase().trim();
@@ -897,16 +901,16 @@ export async function bulkUpsert(req, res) {
     if (!email || !isEmail(email)) { skipped.push({ email, reason:'invalid_email' }); continue; }
 
     const roleIn = normRole(raw.role);
-    // store as 'orguser' for students; vendors stay 'vendor'
-    const finalRole = roleIn === 'student' ? 'orguser' : 'vendor';
+    // store as 'orguser' for students; teachers stay 'teacher'
+    const finalRole = roleIn === 'student' ? 'orguser' : 'teacher';
     const name = raw.name || undefined;
     const status = normStatus(raw.status) || (finalRole === 'orguser' ? 'active' : undefined);
 
     // MFA
     const mfaRequired = ('mfaRequired' in raw) ? truthy(raw.mfaRequired) :
                         ('mfa' in raw && typeof raw.mfa === 'object' && 'required' in raw.mfa) ? !!raw.mfa.required :
-                        true; // default ON for both vendor and learners in admin portal
-    const mfaMethod = normMethod(raw.mfaMethod || raw?.mfa?.method) || (mfaRequired ? (finalRole === 'vendor' ? 'totp' : 'otp') : null);
+                        true; // default ON for both teacher and learners in admin portal
+    const mfaMethod = normMethod(raw.mfaMethod || raw?.mfa?.method) || (mfaRequired ? (finalRole === 'teacher' ? 'totp' : 'otp') : null);
 
     // Manager: explicit managerRef → that admin; else fallback to current actor; else first active admin
     let managerDoc = resolveManager(raw.managerRef) || null;
@@ -922,7 +926,7 @@ export async function bulkUpsert(req, res) {
 
     // --- CREATE ---
     if (!existing) {
-      const plain = (finalRole === 'vendor' && raw.password && String(raw.password).length >= 8)
+      const plain = (finalRole === 'teacher' && raw.password && String(raw.password).length >= 8)
         ? String(raw.password)
         : (crypto.randomBytes(10).toString("base64").replace(/[^a-z0-9]/gi,'').slice(0,12) + "9!");
       const passwordHash = await bcrypt.hash(plain, 12);
@@ -931,7 +935,7 @@ export async function bulkUpsert(req, res) {
         email,
         name: name || null,
         role: finalRole,
-        status: status || (finalRole === 'vendor' ? 'active' : 'active'),
+        status: status || 'active',
         orgId: scopeOrgId,
         invitedBy: actor.sub || actor._id || actor.id || null,
         managerId: managerDoc?._id || null,
@@ -948,7 +952,7 @@ export async function bulkUpsert(req, res) {
         const signInUrl = `${appBase.replace(/\/$/, "")}/signin`;
         const org = await Organization.findById(scopeOrgId).select("name").lean();
         await sendStaffCredentialsEmail(email, {
-          role: roleIn, // public-facing: 'student' or 'vendor'
+          role: roleIn, // public-facing: 'student' or 'teacher'
           signinUrl: signInUrl,
           email,
           password: plain,
@@ -965,13 +969,13 @@ export async function bulkUpsert(req, res) {
 
     // --- UPDATE ---
     if (String(existing.orgId || '') !== String(scopeOrgId)) { skipped.push({ email, reason:'different_org' }); continue; }
-    if (!['vendor','orguser'].includes(existing.role)) { skipped.push({ email, reason:'role_not_allowed' }); continue; }
+    if (!['teacher','vendor','orguser'].includes(existing.role)) { skipped.push({ email, reason:'role_not_allowed' }); continue; }
 
     let changed = false;
     if (name !== undefined && existing.name !== name) { existing.name = name; changed = true; }
     if (status !== undefined && existing.status !== status) { existing.status = status; changed = true; }
 
-    // Allow vendor<->student flips via CSV
+    // Allow teacher<->student flips via CSV
     if (existing.role !== finalRole) { existing.role = finalRole; changed = true; }
 
     // Update manager if resolvable
@@ -979,8 +983,8 @@ export async function bulkUpsert(req, res) {
       existing.managerId = managerDoc._id; changed = true;
     }
 
-    // Password (only honored for vendor; ignored for learners)
-    if (finalRole === 'vendor' && raw.password && String(raw.password).length >= 8) {
+    // Password (only honored for teacher; ignored for learners)
+    if (finalRole === 'teacher' && raw.password && String(raw.password).length >= 8) {
       existing.passwordHash = await bcrypt.hash(String(raw.password), 12);
       changed = true;
     }

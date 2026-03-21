@@ -1,5 +1,5 @@
 // src/auth/RequireOrgUser.tsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./store";
 import type { Role } from "./store";
@@ -18,6 +18,9 @@ type Props = {
   onLoginRedirectTo?: string;
 };
 
+// PHASE 3: same stale-revalidation threshold as Shell.
+const REVALIDATE_MS = 5 * 60 * 1000; // 5 minutes
+
 export default function RequireOrgUser({
   children,
   loading = null,
@@ -25,17 +28,20 @@ export default function RequireOrgUser({
   onDeniedRedirectTo = "/dashboard",
   onLoginRedirectTo = "/login",
 }: Props) {
-  const { status, user, hydrate } = useAuth();
+  const { status, user, lastChecked, hydrate } = useAuth();
   const location = useLocation();
 
-  // Avoid StrictMode double-invoke spamming hydrate()
-  const ran = useRef(false);
+  // PHASE 3: re-validate on idle OR when session hasn't been checked recently.
+  // hydrate() is idempotent (guards against status === "checking") so no
+  // extra ref is needed to prevent double-invoke in StrictMode.
   useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
-    if (status === "idle") hydrate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (
+      status === "idle" ||
+      (status === "ready" && Date.now() - lastChecked > REVALIDATE_MS)
+    ) {
+      hydrate();
+    }
+  }, [status, lastChecked, hydrate]);
 
   // Hard gate: do not mount children until auth check completed
   if (status !== "ready") {

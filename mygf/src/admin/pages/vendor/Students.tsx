@@ -1,50 +1,63 @@
 // src/admin/pages/vendor/Students.tsx
+// Shared by both /vendor and /teacher routes.
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../api/client";
 import { useAuth } from "../../auth/store";
 
-type VendorStudent = {
+type TeacherStudent = {
   enrollmentId: string;
   studentId: string;
-  studentName: string;
-  studentEmail: string;
+  studentName: string | null;
+  studentEmail: string | null;
   courseId: string;
-  courseTitle: string;
+  courseTitle: string | null;
   enrollmentStatus: string;
   enrolledAt: string;
   progressPercent?: number | null;
+  overallStatus?: string | null;
+  certificateUrl?: string | null;
 };
 
 type StudentsResponse = {
-  items: VendorStudent[];
+  items: TeacherStudent[];
   total: number;
 };
 
-async function fetchVendorStudents(params: {
+async function fetchStudents(params: {
   courseId?: string;
   status?: string;
   page: number;
   limit: number;
 }): Promise<StudentsResponse> {
-  const res = await api.get("/vendor/students", { params, withCredentials: true });
+  const res = await api.get("/teacher/students", { params, withCredentials: true });
   const data = res.data;
   if (Array.isArray(data)) return { items: data, total: data.length };
   return data as StudentsResponse;
+}
+
+async function markComplete(studentId: string, courseId: string) {
+  const res = await api.post(
+    `/teacher/students/${studentId}/courses/${courseId}/complete`,
+    {},
+    { withCredentials: true }
+  );
+  return res.data as { ok: boolean; overallStatus: string; certificateUrl: string | null };
 }
 
 const PAGE_SIZE = 20;
 
 export default function VEStudents() {
   const { user } = useAuth() as any;
+  const queryClient = useQueryClient();
   const [page, setPage] = React.useState(1);
   const [courseFilter, setCourseFilter] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
 
   const query = useQuery<StudentsResponse>({
-    queryKey: ["vendor:students", { courseFilter, statusFilter, page }],
+    queryKey: ["teacher:students", { courseFilter, statusFilter, page }],
     queryFn: () =>
-      fetchVendorStudents({
+      fetchStudents({
         courseId: courseFilter || undefined,
         status: statusFilter || undefined,
         page,
@@ -54,14 +67,17 @@ export default function VEStudents() {
     retry: false,
   });
 
+  const completeMutation = useMutation({
+    mutationFn: ({ studentId, courseId }: { studentId: string; courseId: string }) =>
+      markComplete(studentId, courseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teacher:students"] });
+    },
+  });
+
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  // Backend endpoint not yet available — show a clear message
-  const isEndpointMissing =
-    (query.error as any)?.response?.status === 404 ||
-    (query.error as any)?.message === "courses-endpoint-not-found";
 
   return (
     <div className="space-y-5">
@@ -99,19 +115,15 @@ export default function VEStudents() {
         <div className="py-16 text-center text-sm text-slate-500">Loading students…</div>
       )}
 
-      {isEndpointMissing && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
-          <p className="font-semibold">Backend endpoint not available yet</p>
-          <p className="mt-1 text-amber-700">
-            <code className="font-mono">GET /vendor/students</code> has not been deployed.
-            This page will populate automatically once the server-side endpoint is live.
-          </p>
+      {query.isError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+          Failed to load students. Please refresh and try again.
         </div>
       )}
 
-      {query.isError && !isEndpointMissing && (
+      {completeMutation.isError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
-          Failed to load students. Please refresh and try again.
+          Failed to mark completion. Please try again.
         </div>
       )}
 
@@ -130,36 +142,84 @@ export default function VEStudents() {
                   <th className="px-4 py-3">Course</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Progress</th>
+                  <th className="px-4 py-3">Completion</th>
                   <th className="px-4 py-3">Enrolled</th>
+                  <th className="px-4 py-3">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {items.map((s) => (
-                  <tr key={s.enrollmentId} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{s.studentName || "-"}</div>
-                      <div className="text-xs text-slate-500">{s.studentEmail || "-"}</div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{s.courseTitle || s.courseId}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        s.enrollmentStatus === "premium"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : s.enrollmentStatus === "revoked"
-                          ? "bg-red-50 text-red-700 border border-red-200"
-                          : "bg-slate-100 text-slate-600 border border-slate-200"
-                      }`}>
-                        {s.enrollmentStatus}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {s.progressPercent != null ? `${s.progressPercent}%` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
-                      {s.enrolledAt ? new Date(s.enrolledAt).toLocaleDateString() : "—"}
-                    </td>
-                  </tr>
-                ))}
+                {items.map((s) => {
+                  const isCompleted = s.overallStatus === "completed";
+                  const isMarking =
+                    completeMutation.isPending &&
+                    (completeMutation.variables as any)?.studentId === s.studentId &&
+                    (completeMutation.variables as any)?.courseId === s.courseId;
+
+                  return (
+                    <tr key={s.enrollmentId} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-900">{s.studentName || "-"}</div>
+                        <div className="text-xs text-slate-500">{s.studentEmail || "-"}</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{s.courseTitle || s.courseId}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          s.enrollmentStatus === "premium"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : s.enrollmentStatus === "revoked"
+                            ? "bg-red-50 text-red-700 border border-red-200"
+                            : "bg-slate-100 text-slate-600 border border-slate-200"
+                        }`}>
+                          {s.enrollmentStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {s.progressPercent != null ? `${s.progressPercent}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isCompleted ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            ✓ Completed
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">
+                        {s.enrolledAt ? new Date(s.enrolledAt).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isCompleted ? (
+                          s.certificateUrl ? (
+                            <a
+                              href={s.certificateUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-indigo-600 hover:underline"
+                            >
+                              View Certificate
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400">Certificate pending</span>
+                          )
+                        ) : (
+                          <button
+                            disabled={isMarking || s.enrollmentStatus === "revoked"}
+                            onClick={() =>
+                              completeMutation.mutate({
+                                studentId: s.studentId,
+                                courseId: s.courseId,
+                              })
+                            }
+                            className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {isMarking ? "Marking…" : "Mark Complete"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true, index: true },
   passwordHash: String,
-  role: { type: String, enum: ["superadmin","admin","vendor","student","orgadmin","orguser"], default: "student" },
+  role: { type: String, enum: ["superadmin","admin","teacher","vendor","student","orgadmin","orguser"], default: "student" },
   status: { type: String, enum: ["active","disabled"], default: "active" },
   orgId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null },
   mfa: { type: mfaSchema, default: () => ({ required: false }) },

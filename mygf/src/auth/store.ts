@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { checkSession, logout as apiLogout } from "../api/auth";
 
-export type Role = "superadmin" | "admin" | "vendor" | "student" | "orgadmin" | "orguser";
+export type Role = "superadmin" | "admin" | "teacher" | "vendor" | "student" | "orgadmin" | "orguser";
 export type MfaInfo = { required: boolean; method?: "otp" | "totp" };
 
 export type User = {
@@ -27,6 +27,8 @@ type AuthState = {
   mfaVerified: boolean;
   initialized: boolean;
   status: Status;
+  /** Epoch ms of the last successful /auth/check. 0 = never checked. */
+  lastChecked: number;
 
   /** Hint for public routes to decide whether to ping /auth/check in this tab. */
   hadRefreshHint: boolean;
@@ -53,6 +55,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
   mfaVerified: false,
   initialized: false,
   status: "idle",
+  lastChecked: 0,
   hadRefreshHint: false,
 
   login: ({ user, tokens }) => {
@@ -62,17 +65,21 @@ export const useAuth = create<AuthState>()((set, get) => ({
       mfaVerified: !user?.mfa?.required,
       status: "ready",
       initialized: true,
-      hadRefreshHint: true, // set in-memory hint for this tab
+      lastChecked: Date.now(),
+      hadRefreshHint: true,
     }));
   },
 
   verifyMfa: () => set({ mfaVerified: true }),
 
   logout: async () => {
-    try { await apiLogout(); } catch {}
-    set({ user: null, tokens: {}, mfaVerified: false, status: "ready", hadRefreshHint: false });
-    // Keep redirect behavior identical to previous code
-    window.location.assign("/login.html");
+    try { await apiLogout(); } catch { /* backend may already be unreachable — proceed with local cleanup */ }
+    set({ user: null, tokens: {}, mfaVerified: false, status: "idle", lastChecked: 0, hadRefreshHint: false });
+    // PHASE 6: signal all other tabs to logout via the storage event.
+    // The storage event fires in OTHER tabs only (not the current one), so
+    // this never causes a recursive call within this tab.
+    try { localStorage.setItem("auth:logout", Date.now().toString()); } catch { /* storage unavailable in private browsing — cross-tab sync best-effort */ }
+    window.location.assign("/login");
   },
 
   setTokens: (t) => set({ tokens: t ?? {} }),
@@ -89,9 +96,10 @@ export const useAuth = create<AuthState>()((set, get) => ({
         set({
           user: res.user as User,
           tokens: {},
-          mfaVerified: !(res.user as any)?.mfa?.required,
+          mfaVerified: !(res.user as User)?.mfa?.required,
           initialized: true,
           status: "ready",
+          lastChecked: Date.now(),
           hadRefreshHint: true,
         });
       } else {
@@ -101,6 +109,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
           mfaVerified: false,
           initialized: true,
           status: "ready",
+          lastChecked: Date.now(),
           hadRefreshHint: false,
         });
       }
@@ -111,6 +120,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
         mfaVerified: false,
         initialized: true,
         status: "ready",
+        lastChecked: Date.now(),
         hadRefreshHint: false,
       });
     }

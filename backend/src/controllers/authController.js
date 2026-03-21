@@ -48,6 +48,31 @@ const alog = (...args) => {
   if (DEBUG_AUTH) console.log(new Date().toISOString(), "[auth]", ...args);
 };
 
+// ---------------------------------------------------------------------------
+// PHASE 1: Deterministic refresh-cookie reader.
+//
+// The root cause of "jti-revoked" failures in production logs:
+//   req.cookies["__Host-refresh"] || req.cookies.sr
+// reads whichever name the browser sends first. If the browser holds BOTH
+// (e.g., user moved between HTTP dev and HTTPS prod, or a previous session
+// left a stale cookie), the WRONG — possibly already-rotated — token is
+// used, its JTI is revoked in the DB, and the refresh fails.
+//
+// This helper mirrors the exact HTTPS detection in setAuthCookies() so that
+// the cookie we READ is always the same cookie we WROTE.
+// ---------------------------------------------------------------------------
+function getActiveRefreshCookie(req) {
+  // Mirrors cookies.js setAuthCookies — useHostPrefix = secure (HTTPS-only,
+  // no isDev guard) so the cookie we READ always matches the one we WRITE.
+  const viaHttps =
+    req?.secure === true ||
+    String(req?.headers?.["x-forwarded-proto"] || "").toLowerCase().includes("https");
+  const useHostPrefix = !!viaHttps; // same as `secure` in cookies.js
+  return useHostPrefix
+    ? req.cookies?.["__Host-refresh"]
+    : req.cookies?.sr;
+}
+
 async function saveRefresh(userId, jti, exp, device) {
   await RefreshToken.create({ userId, jti, exp, device });
 }
@@ -538,19 +563,22 @@ export async function check(req, res) {
 
     // Return 200 for unauthenticated sessions to avoid noisy "Failed to load resource"
     // logs on public pages that call this endpoint only to decide UI state.
-    if (!token) return res.json({ ok: false });
+    // PHASE 7: return 401 (not 200) so the response status carries semantic
+    // meaning. Frontend checkSession() uses validateStatus to handle this
+    // without triggering the axios interceptor's refresh-retry cycle.
+    if (!token) return res.status(401).json({ ok: false });
 
     try {
       const { sub: uid } = jwt.verify(token, JWT_ACCESS_SECRET);
       const user = await User.findById(uid);
-      if (!user) return res.json({ ok: false });
+      if (!user) return res.status(401).json({ ok: false });
       return res.json({ ok: true, user });
     } catch {
       // ✋ Do NOT rotate refresh here. Just say “not authorized”.
-      return res.json({ ok: false });
+      return res.status(401).json({ ok: false });
     }
   } catch {
-    return res.json({ ok: false });
+    return res.status(401).json({ ok: false });
   }
 }
 
@@ -561,7 +589,7 @@ export async function refresh(req, res) {
   const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
 
   try {
-    const rt = req.cookies?.["__Host-refresh"] || req.cookies?.sr;
+    const rt = getActiveRefreshCookie(req);
     const allCookies = Object.keys(req.cookies || {});
     alog("[refresh:start]", { 
       rid, 
@@ -650,7 +678,7 @@ export async function refresh(req, res) {
 export async function logout(req, res) {
   try {
     // Revoke whichever refresh cookie name is present
-    const rt = req.cookies?.["__Host-refresh"] || req.cookies?.sr;
+    const rt = getActiveRefreshCookie(req);
     if (rt) {
       try {
         const { jti } = jwt.verify(rt, JWT_REFRESH_SECRET);

@@ -51,7 +51,7 @@ export default function ADUsers(){
           <Label>Role</Label>
           <Select value={filters.role} onChange={e=> setFilters(s => ({...s, role: e.target.value as any}))}>
             <option value="all">All</option>
-            <option value="vendor">Vendor</option>
+            <option value="teacher">Teacher</option>
             <option value="student">Student</option>
           </Select>
         </div>
@@ -94,12 +94,12 @@ export default function ADUsers(){
                 <td className="p-3">{u.email}</td>
                 <td className="p-3">
                   <span className={
-                    u.role==='vendor'
+                    (u.role==='teacher' || u.role==='vendor')
                       ? 'inline-flex items-center gap-1 text-amber-700 bg-amber-50 rounded px-2 py-0.5'
                       : 'inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 rounded px-2 py-0.5'
                   }>
-                    {u.role==='vendor' ? <UserCog size={14}/> : <Crown size={14}/>}
-                    {u.role}
+                    {(u.role==='teacher' || u.role==='vendor') ? <UserCog size={14}/> : <Crown size={14}/>}
+                    {u.role==='vendor' ? 'teacher' : u.role}
                   </span>
                 </td>
                 <td className="p-3">
@@ -221,7 +221,7 @@ function EditUserModal({
             if (error) setError(null); // Clear error when user changes role
           }} disabled={mode==='edit'}>
             <option value="student">Student</option>
-            <option value="vendor">Vendor</option>
+            <option value="teacher">Teacher</option>
           </Select>
           <p className="text-xs text-gray-500 mt-1">
             {sendMethod === 'credentials' 
@@ -567,7 +567,7 @@ function CsvImportModal({ onClose, onImport }: { onClose: ()=>void; onImport: (r
   const [text, setText] = useState(
 `email,role,name,status,managerRef,password,mfaRequired,mfaMethod
 student1@acme.com,student,Student One,active,,,
-vendor1@acme.com,vendor,Vendor One,active,admin1@acme.com,Vend0r#Pass,true,totp`
+teacher1@acme.com,teacher,Teacher One,active,admin1@acme.com,Teach3r#Pass,true,totp`
   )
   const [importing, setImporting] = useState(false)
   const fileRef = React.useRef<HTMLInputElement>(null)
@@ -586,7 +586,8 @@ vendor1@acme.com,vendor,Vendor One,active,admin1@acme.com,Vend0r#Pass,true,totp`
   const truthy = (v:string) => /^(true|1|yes|y)$/i.test((v||'').trim())
   const normRole = (v:string) => {
     const r = (v||'').toLowerCase().trim()
-    return (r==='vendor' || r==='student') ? r : 'student'
+    if (r === 'teacher' || r === 'vendor') return 'teacher' // accept both during migration
+    return r === 'student' ? 'student' : 'student'
   }
   const normStatus = (v:string) => {
     const s = (v||'').toLowerCase().trim()
@@ -616,8 +617,8 @@ vendor1@acme.com,vendor,Vendor One,active,admin1@acme.com,Vend0r#Pass,true,totp`
 `email,role,name,status,managerRef,password,mfaRequired,mfaMethod
 student1@acme.com,student,Student One,active,,,
 student2@acme.com,student,Student Two,active,admin1@acme.com,,true,otp
-vendor1@acme.com,vendor,Vendor One,active,,Vend0r#Pass,true,totp
-vendor2@acme.com,vendor,Vendor Two,active,admin2@acme.com,,true,otp`
+teacher1@acme.com,teacher,Teacher One,active,,Teach3r#Pass,true,totp
+teacher2@acme.com,teacher,Teacher Two,active,admin2@acme.com,,true,otp`
     )
   }
   function downloadCsv(filename: string, content: string) {
@@ -683,12 +684,12 @@ vendor2@acme.com,vendor,Vendor Two,active,admin2@acme.com,,true,otp`
         <div className="text-sm text-gray-600 space-y-1">
           <p className="font-medium">Accepted headers (org is auto-assigned to your org):</p>
           <div className="text-xs grid gap-1">
-            <div><code>email</code> (required), <code>role</code> (<code>student|vendor</code>), <code>name</code>, <code>status</code> (<code>active|disabled</code>), <code>password</code> (vendor only)</div>
+            <div><code>email</code> (required), <code>role</code> (<code>student|teacher</code>), <code>name</code>, <code>status</code> (<code>active|disabled</code>), <code>password</code> (teacher only)</div>
             <div><code>managerRef</code> (optional admin email or id; defaults to you)</div>
             <div><code>mfaRequired</code> (<code>true|false</code>), <code>mfaMethod</code> (<code>otp|totp</code>)</div>
           </div>
           <p className="text-xs">
-            Students and vendors are created immediately and emailed credentials. MFA is ON by default (students: Email OTP, vendors: your chosen method).
+            Students and teachers are created immediately and emailed credentials. MFA is ON by default (students: Email OTP, teachers: your chosen method).
           </p>
         </div>
 
