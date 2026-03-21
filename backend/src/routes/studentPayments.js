@@ -3,6 +3,7 @@ import { Router } from "express";
 import mongoose from "mongoose";              // ⬅️ add
 import { requireAuth } from "../middleware/authz.js";
 import Payment from "../models/Payment.js";
+import Course from "../models/Course.js";
 
 const r = Router();
 r.use(requireAuth);
@@ -74,13 +75,21 @@ r.get("/latest", async (req, res) => {
   });
 });
 
-// POST /api/student/payments/claim  (unchanged)
+// POST /api/student/payments/claim
 r.post("/claim", async (req, res) => {
   const actor = req.user;
-  const { orgId, courseId, amount, receiptNo, referenceId, notes } = req.body || {};
-  if (!orgId || !courseId || !amount) {
-    return res.status(400).json({ ok: false, message: "orgId, courseId, amount are required" });
+  // 🔒 orgId is NEVER trusted from client — always derived from course record
+  const { courseId, amount, receiptNo, referenceId, notes } = req.body || {};
+  if (!courseId || !amount) {
+    return res.status(400).json({ ok: false, message: "courseId and amount are required" });
   }
+
+  const course = await Course.findById(courseId).lean();
+  if (!course) {
+    return res.status(404).json({ ok: false, message: "Course not found" });
+  }
+  const orgId = course.orgId ?? null;
+
   const doc = await Payment.create({
     type: "offline",
     method: "upi",
@@ -89,7 +98,7 @@ r.post("/claim", async (req, res) => {
     currency: "INR",
     orgId,
     courseId,
-    studentId: actor._id || actor.id || actor.sub,     // ⬅️ be flexible on write too
+    studentId: actor._id || actor.id || actor.sub,
     receiptNo: receiptNo || undefined,
     referenceId: referenceId || undefined,
     notes: typeof notes === "string" ? notes : JSON.stringify(notes || {}),

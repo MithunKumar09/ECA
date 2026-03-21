@@ -105,6 +105,9 @@ export const useJoinCatalog = create<CatalogState>((set, get) => ({
           mrpPaise,
           salePaise,
           discountPercent,
+
+          // org name from API (null = global / platform course)
+          orgName: rc.orgName ?? null,
         });
 
         return item;

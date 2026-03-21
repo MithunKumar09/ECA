@@ -24,6 +24,8 @@ export type Course = {
   tags?: string[];
   previewUrl?: string | null | undefined;
   description?: string;
+  /** Organization name. null = global / platform course */
+  orgName?: string | null;
 };
 
 export const CHIP_OPTIONS = ["All", "Latest", "Design"] as const;

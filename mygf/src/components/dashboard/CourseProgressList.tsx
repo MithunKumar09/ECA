@@ -42,6 +42,7 @@ export default function CourseProgressList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -141,16 +142,25 @@ export default function CourseProgressList() {
 
         if (collected.length < 1) {
           const fb = await fetchFallback();
-          if (!cancelled) setCourses(fb);
+          if (!cancelled) {
+            setEnrolledIds(new Set()); // fallback courses are NOT enrolled
+            setCourses(fb);
+          }
         } else {
-          if (!cancelled) setCourses(collected.slice(0, 2));
+          if (!cancelled) {
+            setEnrolledIds(new Set(paid)); // only actually enrolled IDs
+            setCourses(collected.slice(0, 2));
+          }
         }
       } catch (e) {
         console.error("[Dashboard.CourseProgressList] load error", e);
         // graceful fallback even if enrollments API errors
         try {
           const fb = await fetchFallback();
-          if (!cancelled) setCourses(fb);
+          if (!cancelled) {
+            setEnrolledIds(new Set()); // enrollment unknown, do not mark as enrolled
+            setCourses(fb);
+          }
         } catch (e2) {
           if (!cancelled) setError("Failed to load courses");
         }
@@ -193,8 +203,7 @@ export default function CourseProgressList() {
               course={course}
               isWishlisted={false}
               onToggleWishlist={() => {}}
-              // enrolled → premium access allowed
-              isPremium={true}
+              isPremium={enrolledIds.has(String(course.id))}
               onRequireEnroll={() => {}}
             />
           ))}

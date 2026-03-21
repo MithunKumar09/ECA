@@ -204,14 +204,17 @@ function TracksBody({ user }: { user?: User }) {
     }
   }, [searchParams, user, navigate, setSearchParams]);
 
-  // Treat 0 or undefined paise as "free"
+  // A course is free ONLY when price is explicitly 0 — null/undefined = unknown, NOT free
   const freeIds = useMemo(() => {
     const s = new Set<string>();
     (apiCourses ?? []).forEach((c) => {
-      const p = (typeof c.pricePaise === "number")
-        ? c.pricePaise
-        : (typeof (c as any).price === "number" ? Math.round((c as any).price * 100) : 0);
-      if (!p || p <= 0) s.add(String(c.id));
+      const p =
+        typeof c.pricePaise === "number"
+          ? c.pricePaise
+          : typeof c.price === "number"
+          ? Math.round(c.price * 100)
+          : null; // null = unknown price, never treated as free
+      if (p !== null && p <= 0) s.add(String(c.id));
     });
     return s;
   }, [apiCourses]);
@@ -237,17 +240,17 @@ function TracksBody({ user }: { user?: User }) {
           if (isPremium) paySet.add(id);
         });
 
-        const merged = new Set<string>([...Array.from(freeIds), ...Array.from(paySet)]);
-        if (!cancelled) setPremiumIds(merged);
+        if (!cancelled) setPremiumIds(new Set<string>(paySet));
       } catch {
-        if (!cancelled) setPremiumIds(new Set<string>(Array.from(freeIds)));
+        if (!cancelled) setPremiumIds(new Set<string>());
       }
     })();
 
     return () => { cancelled = true; };
   }, [freeIds, user?.id]);
 
-  const isPremium = (courseId: string | number) => premiumIds.has(String(courseId));
+  const isPremium = (courseId: string | number) =>
+    freeIds.has(String(courseId)) || premiumIds.has(String(courseId));
 
   // Build wishlist array for Sidebar (keeps prop shape intact)
   const sidebarWishlist: CourseType[] = useMemo(

@@ -13,8 +13,9 @@ export default function PaymentStep(props: {
   partAmount: number | ""; setPartAmount: (v: number | "") => void;
   isPaying: boolean; onPay?: () => void | Promise<void>;
   errors: Record<string, string>;
-  receiptNo: string; setReceiptNo: (v: string) => void; 
+  receiptNo: string; setReceiptNo: (v: string) => void;
   referenceId: string; setReferenceId: (v: string) => void;
+  orgName?: string | null;
 }) {
   const {
     course, base, discount, total,
@@ -47,6 +48,11 @@ export default function PaymentStep(props: {
 
   return (
     <div className="space-y-5">
+      {/* Org attribution — always shown; defaults to "Platform" for global courses */}
+      <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-800">
+        Enrolling under: <span className="font-semibold">{props.orgName || "Platform"}</span>
+      </div>
+
       <div className="rounded-xl border bg-white p-4">
         <div className="flex items-center justify-between">
           <div>

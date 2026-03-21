@@ -8,6 +8,10 @@ export type CourseOption = {
   /** Optional list prices in paise */
   mrpPaise?: number | null;
   salePaise?: number | null;
+  /** Rupees fallback used by legacy consumers (prefer mrpPaise) */
+  price?: number;
+  /** Organization name. null = global / platform course */
+  orgName?: string | null;
 };
 
 export type Step = 1 | 2 | 3 | 4;

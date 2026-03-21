@@ -1,6 +1,7 @@
 // backend/src/controllers/studentCatalogController.js (inside backend1.zip)
 import Course from "../models/Course.js";
 import User from "../models/User.js";
+import Organization from "../models/Organization.js";
 import mongoose from "mongoose";
 
 // helper: parse simple "3h 20m" / "95m" → hours number
@@ -29,29 +30,8 @@ export async function listCourses(req, res) {
       );
     } catch {}
 
-    // Rehydrate orgId from DB if missing on token
-    let orgId = req.user?.orgId || null;
-    if (!orgId && req.user?.sub) {
-      const u = await User.findById(req.user.sub).select("orgId").lean();
-      if (u?.orgId) orgId = String(u.orgId);
-    }
-
-    // 🔑 Audience rule:
-    // - orgId present  -> org courses (published)
-    // - no orgId       -> global public courses (published)
-const query = orgId
-  ? {
-      $or: [
-        { orgId: new mongoose.Types.ObjectId(orgId) }, // org courses
-        { orgId: null }                                // global courses
-      ],
-      status: "published"
-    }
-  : {
-      orgId: null,
-      visibility: "public",
-      status: "published"
-    };
+    // All published public courses — visible to every authenticated user regardless of org membership
+    const query = { status: "published", visibility: "public" };
 
     const docs = await Course.find(query)
       .select(
@@ -63,8 +43,16 @@ const query = orgId
           "duration","durationHours","createdAt","updatedAt",
         ].join(" ")
       )
-      .sort({ orgId: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .lean();
+
+    // Bulk-fetch org names for all courses that have an orgId
+    const orgIds = [...new Set(docs.map(c => c.orgId).filter(Boolean).map(String))];
+    const orgNameMap = new Map();
+    if (orgIds.length) {
+      const orgs = await Organization.find({ _id: { $in: orgIds } }).select("_id name").lean();
+      for (const o of orgs) orgNameMap.set(String(o._id), o.name || null);
+    }
 
     const items = docs.map((c) => {
       // ---- pricing in paise (authoritative) ----
@@ -108,6 +96,7 @@ const query = orgId
         status: c.status || "draft",
 
         orgId: c.orgId ? String(c.orgId) : null,
+        orgName: c.orgId ? (orgNameMap.get(String(c.orgId)) ?? null) : null,
         ownerId: c.ownerId ? String(c.ownerId) : null,
 
         duration: c.duration || null,
@@ -128,25 +117,13 @@ const query = orgId
 // NEW: minimal “cards” payload for Tracks page
 export async function listCatalogCards(req, res) {
   try {
-    // infer orgId like listCourses (JWT → DB fallback)
-    let orgId = req.user?.orgId || null;
-    if (!orgId && req.user?.sub) {
-      try {
-        const u = await User.findById(req.user.sub).select("orgId").lean();
-        if (u?.orgId) orgId = String(u.orgId);
-      } catch {}
-    }
-
     // pagination
     const limitRaw = Number(req.query.limit);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 12;
     const cursor = (req.query.cursor || "").toString().trim();
 
-    // public courses + same-org courses
-    const $or = [{ orgId: null, visibility: "public", status: "published" }];
-    if (orgId) $or.push({ orgId, status: "published" });
-
-    const query = { $or };
+    // All published public courses — visible to every user regardless of org membership
+    const query = { status: "published", visibility: "public" };
     if (cursor && mongoose.isValidObjectId(cursor)) {
       // efficient keyset pagination by _id (newest first)
       Object.assign(query, { _id: { $lt: new mongoose.Types.ObjectId(cursor) } });
@@ -180,6 +157,14 @@ export async function listCatalogCards(req, res) {
       .limit(limit + 1)
       .lean();
 
+    // Bulk-fetch org names
+    const cardOrgIds = [...new Set(docs.map(c => c.orgId).filter(Boolean).map(String))];
+    const cardOrgNameMap = new Map();
+    if (cardOrgIds.length) {
+      const orgs = await Organization.find({ _id: { $in: cardOrgIds } }).select("_id name").lean();
+      for (const o of orgs) cardOrgNameMap.set(String(o._id), o.name || null);
+    }
+
     const items = docs.slice(0, limit).map((c) => {
       // compute total seconds from chapters; fallback to durationText
       const chapters = Array.isArray(c.chapters) ? c.chapters : [];
@@ -210,6 +195,7 @@ export async function listCatalogCards(req, res) {
         rating: Number.isFinite(c.ratingAvg) ? Number(c.ratingAvg) : 0,
         ratingCount: Number.isFinite(c.ratingCount) ? Number(c.ratingCount) : 0,
         orgId: c.orgId ? String(c.orgId) : null,
+        orgName: c.orgId ? (cardOrgNameMap.get(String(c.orgId)) ?? null) : null,
         visibility: c.visibility || "unlisted",
         status: c.status || "draft",
         level: c.level || "all",
@@ -244,8 +230,8 @@ export async function getCourseDetail(req, res) {
       if (u?.orgId) orgId = u.orgId;
     }
 
-    // allow org courses or global
-    const c = await Course.findOne({ _id: id, $or: [{ orgId }, { orgId: null }] }).lean();
+    // allow any published public course — mirrors catalog-level visibility rule
+    const c = await Course.findOne({ _id: id, status: "published", visibility: "public" }).lean();
     if (!c) return res.status(404).json({ ok: false, message: "Course not found" });
 
         // 🔹 NEW: resolve instructor/owner names

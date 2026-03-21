@@ -74,6 +74,7 @@ import VEPayments from "./admin/pages/vendor/Payments";
 import VECourses from "./admin/pages/vendor/Courses";
 import VEReports from "./admin/pages/vendor/Reports";
 import VENotes from "./admin/pages/vendor/Notes";
+import VEStudents from "./admin/pages/vendor/Students";
 
 // ---------- Centralized guards ----------
 import Shell from "./shell";
@@ -210,7 +211,8 @@ export default function App() {
         <Route path="assessments" element={<VEAssessments />} />
         <Route path="payments" element={<VEPayments />} />
         <Route path="notes" element={<VENotes />} />
-        </Route>
+        <Route path="students" element={<VEStudents />} />
+      </Route>
 
       {/* Fallback - redirect to static HTML home */}
       <Route path="*" element={<Navigate to="/login" replace />} />

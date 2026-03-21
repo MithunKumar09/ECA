@@ -53,6 +53,7 @@ import adminReviewRouter from "./src/routes/adminReviewsRoutes.js";
 import notesRouter from "./src/routes/notes.js";
 import studentNotesRouter from "./src/routes/studentNotes.js";
 import contactMessagesRouter from "./src/routes/contactMessages.js";
+import vendorRouter from "./src/routes/vendor.js";
 
 import path from "path";
 import fs from "fs";
@@ -308,6 +309,7 @@ app.use("/api/admin", adminReviewRouter);
 app.use("/api/admin", contactMessagesRouter);
 app.use("/api/notes", notesRouter);
 app.use("/api/student/notes", studentNotesRouter);
+app.use("/api/vendor", vendorRouter);
 
 // Serve HTML pages from html-pages folder (outside React)
 // const htmlPagesDir = path.join(process.cwd(), "html-pages");

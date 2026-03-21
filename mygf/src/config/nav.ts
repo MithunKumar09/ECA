@@ -103,13 +103,17 @@ export const MENUS: RoleMenuMap = {
 
   vendor: [
     { heading: "Overview", items: [ { label: "Dashboard", to: `${VE}/overview`, icon: LayoutDashboard, exact: true } ] },
-    { heading: "Courses", items: [ 
-      { label: "Courses", to: `${VE}/courses`, icon: BookOpen },
-      { label: "Add Notes", to: `${VE}/notes`, icon: FileText },
-      { label: "Reports", to: `${VE}/reports`,      icon: BarChart },
+    { heading: "Courses", items: [
+      { label: "Courses",   to: `${VE}/courses`, icon: BookOpen },
+      { label: "Add Notes", to: `${VE}/notes`,   icon: FileText },
+      { label: "Reports",   to: `${VE}/reports`, icon: BarChart },
     ] },
-    
-    // { heading: "Payments", items: [ { label: "Payments", to: `${VE}/payments`, icon: CreditCard } ] },
+    { heading: "Students", items: [
+      { label: "Students", to: `${VE}/students`, icon: Users },
+    ] },
+    { heading: "Commerce", items: [
+      { label: "Payments", to: `${VE}/payments`, icon: CreditCard },
+    ] },
   ],
 
   student: [],

@@ -28,8 +28,6 @@ function parseDurationTextToHours(input: unknown): number {
 export async function fetchCoursesPage({
   cursor,
   limit = 12,
-  audience = "public",
-  orgId,
 }: {
   cursor?: string | null;
   limit?: number;
@@ -37,117 +35,85 @@ export async function fetchCoursesPage({
   audience?: Audience;
   orgId?: string | null;
 } = {}): Promise<{ items: Course[]; nextCursor: string | null }> {
-  const accepted: Course[] = [];
-  let next = cursor ?? undefined;
-  let guard = 0;
-
-const acceptRaw = (it: any) => {
-  const rawOrg = it?.orgId ?? null;
-
-  // Public users → only global courses
-  if (audience === "public") {
-    return rawOrg == null;
-  }
-
-  // Org users → org courses + global courses
-  if (audience === "org") {
-    if (rawOrg == null) return true; // global
-    return orgId && String(rawOrg) === String(orgId);
-  }
-
-  return true;
-};
-
-  while (accepted.length < limit && guard < 10) {
-    let payload: RawCardsResponse = { items: [], nextCursor: null };
-    try {
-      const res = await api.get<RawCardsResponse>("/student-catalog/courses/cards", {
-        params: { limit, cursor: next, audience, orgId: orgId || undefined },
-      });
-      payload = res.data || { items: [], nextCursor: null };
-    } catch (_err) {
-      // If unauthenticated and using public audience, fall back to public catalog
-      if (audience === "public") {
-        try {
-          const alt = await api.get<any>("/public/catalog/by-program-type");
-          const list = Array.isArray(alt?.data?.courses) ? alt.data.courses : [];
-          payload = { items: list, nextCursor: null } as RawCardsResponse;
-        } catch {
-          payload = { items: [], nextCursor: null } as RawCardsResponse;
-        }
-      }
-    }
-
-    const items = Array.isArray(payload.items) ? payload.items : [];
-    const filtered = items.filter(acceptRaw);
-
-    filtered.forEach((it: any, idx: number) => {
-      if (accepted.length >= limit) return;
-
-      const rating = Number.isFinite(it.rating) ? it.rating : (Number.isFinite(it.ratingAvg) ? it.ratingAvg : 0);
-      const ratingCount = Number.isFinite(it.ratingCount) ? it.ratingCount : 0;
-
-      // --- price math (paise) ---
-      const rawPricePaise = Number.isFinite(it.pricePaise) ? Number(it.pricePaise) : (Number.isFinite(it.price) ? Number(it.price) : null);
-      const rawDiscount = Number.isFinite(it.discountPercent) ? Number(it.discountPercent) : 0;
-      const mrpPaise = rawPricePaise;
-      const salePaise =
-        mrpPaise != null && rawDiscount > 0
-          ? Math.max(0, Math.round(mrpPaise * (1 - rawDiscount / 100)))
-          : mrpPaise;
-
-      // ✅ duration: prefer numeric durationHours from backend; fallback to durationText; else 0
-      const durationHours =
-        Number.isFinite(it.durationHours) && it.durationHours >= 0
-          ? Number(it.durationHours)
-          : parseDurationTextToHours(it.durationText ?? it.duration ?? null);
-
-      const item: Course = {
-        durationHours: Number.isFinite(durationHours) ? durationHours : 0,
-
-        id: String(it.id ?? it._id ?? idx),
-        title: String(it.title ?? "Untitled"),
-        track: it.slug ?? null,
-        pill: it.category ?? null,
-
-        cover: (it.cover ?? it.bundleCoverUrl ?? it.coverUrl) ?? undefined,
-        previewUrl: it.previewUrl ?? it.demoVideoUrl ?? undefined,
-
-        rating,
-        ratingCount,
-        description: it.description ?? "",
-
-        level: (() => {
-          const lv = String(it.level ?? "all").toLowerCase();
-          const map: Record<string, Level> = {
-            beginner: "Beginner",
-            intermediate: "Intermediate",
-            advanced: "Advanced",
-          };
-          return map[lv] ?? "Beginner";
-        })(),
-
-        category: it.category ?? null,
-        tags: Array.isArray(it.tags) ? it.tags : [],
-
-        // keep existing public API
-        price: undefined,
-        pricePaise: mrpPaise,
-
-        discountPercent: rawDiscount,
-      };
-
-      // attach computed fields without touching Course type
-      Object.assign(item as any, { mrpPaise, salePaise });
-
-      accepted.push(item);
+  let payload: RawCardsResponse = { items: [], nextCursor: null };
+  try {
+    const res = await api.get<RawCardsResponse>("/student-catalog/courses/cards", {
+      params: { limit, cursor: cursor ?? undefined },
     });
-
-    if (accepted.length >= limit) break;
-    if (!payload.nextCursor) { next = undefined; break; }
-    next = payload.nextCursor;
-    guard++;
+    payload = res.data || { items: [], nextCursor: null };
+  } catch (_err) {
+    try {
+      const alt = await api.get<any>("/public/catalog/by-program-type");
+      const list = Array.isArray(alt?.data?.courses) ? alt.data.courses : [];
+      payload = { items: list, nextCursor: null } as RawCardsResponse;
+    } catch {
+      payload = { items: [], nextCursor: null } as RawCardsResponse;
+    }
   }
 
-  return { items: accepted, nextCursor: next ?? null };
+  const items = Array.isArray(payload.items) ? payload.items : [];
+
+  const accepted: Course[] = items.map((it: any, idx: number) => {
+    const rating = Number.isFinite(it.rating) ? it.rating : (Number.isFinite(it.ratingAvg) ? it.ratingAvg : 0);
+    const ratingCount = Number.isFinite(it.ratingCount) ? it.ratingCount : 0;
+
+    // --- price math (paise) ---
+    const rawPricePaise = Number.isFinite(it.pricePaise) ? Number(it.pricePaise) : (Number.isFinite(it.price) ? Number(it.price) : null);
+    const rawDiscount = Number.isFinite(it.discountPercent) ? Number(it.discountPercent) : 0;
+    const mrpPaise = rawPricePaise;
+    const salePaise =
+      mrpPaise != null && rawDiscount > 0
+        ? Math.max(0, Math.round(mrpPaise * (1 - rawDiscount / 100)))
+        : mrpPaise;
+
+    // ✅ duration: prefer numeric durationHours from backend; fallback to durationText; else 0
+    const durationHours =
+      Number.isFinite(it.durationHours) && it.durationHours >= 0
+        ? Number(it.durationHours)
+        : parseDurationTextToHours(it.durationText ?? it.duration ?? null);
+
+    const item: Course = {
+      durationHours: Number.isFinite(durationHours) ? durationHours : 0,
+
+      id: String(it.id ?? it._id ?? idx),
+      title: String(it.title ?? "Untitled"),
+      track: it.slug ?? null,
+      pill: it.category ?? null,
+      
+
+      cover: (it.cover ?? it.bundleCoverUrl ?? it.coverUrl) ?? undefined,
+      previewUrl: it.previewUrl ?? it.demoVideoUrl ?? undefined,
+
+      rating,
+      ratingCount,
+      description: it.description ?? "",
+
+      level: (() => {
+        const lv = String(it.level ?? "all").toLowerCase();
+        const map: Record<string, Level> = {
+          beginner: "Beginner",
+          intermediate: "Intermediate",
+          advanced: "Advanced",
+        };
+        return map[lv] ?? "Beginner";
+      })(),
+
+      category: it.category ?? null,
+      tags: Array.isArray(it.tags) ? it.tags : [],
+
+      // keep existing public API
+      price: undefined,
+      pricePaise: mrpPaise,
+
+      discountPercent: rawDiscount,
+      orgName: it.orgName ?? null,
+    };
+
+    // attach computed fields without touching Course type
+    Object.assign(item as any, { mrpPaise, salePaise });
+
+    return item;
+  });
+
+  return { items: accepted, nextCursor: payload.nextCursor ?? null };
 }

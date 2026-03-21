@@ -28,7 +28,7 @@ export default function JoinNowModal({
   onClose: () => void;
   selectedCourseId?: string;
 }) {
-  const [step, setStep] = React.useState<Step>(1);
+  const [step, setStep] = React.useState<Step>(selectedCourseId ? 2 : 1);
   const [selectedCourse, setSelectedCourse] = React.useState<CourseOption | null>(null);
 
   // 🚀 use cached catalog (no local fetching state anymore)
@@ -80,10 +80,12 @@ export default function JoinNowModal({
   // ⛔️ STOP refetching on every select:
   // Only (re)load when we actually show Step 1 AND auth is ready.
   React.useEffect(() => {
-    if (step !== 1 || status !== "ready") return;
-    if (!user || !user.orgId) return; // show message instead of fetching
+    if (status !== "ready") return;
+    if (!user) return;
+    // Fetch when on step 1 OR when a course is pre-selected (need to resolve it from catalog)
+    if (step !== 1 && !selectedCourseId) return;
     fetchCatalog({ force: false });    // uses TTL cache; background refresh if stale
-  }, [step, status, user?.orgId, fetchCatalog]);
+  }, [step, status, user?.id, fetchCatalog, selectedCourseId]);
 
   React.useEffect(() => {
     if (!selectedCourseId || selectedCourse || typedCourses.length === 0) return;
@@ -101,7 +103,7 @@ const [courseStates, setCourseStates] = React.useState<Record<string, CourseStat
 // NEW: one clear fetch to the dedicated endpoint
 React.useEffect(() => {
   let cancel = false;
-  if (step !== 1 || status !== "ready" || !user?.orgId) return;
+  if (step !== 1 || status !== "ready" || !user) return;
   if (!typedCourses.length) return;
 
   (async () => {
@@ -173,7 +175,7 @@ const total = Math.max(0, base - discount);
 
   // ---- payment flow
   async function handleOnlinePay() {
-    if (!selectedCourse || !user?.orgId) return;
+    if (!selectedCourse || !user) return;
     setIsPaying(true);
     try {
       const order = await rzpCreateOrder({
@@ -237,7 +239,7 @@ const total = Math.max(0, base - discount);
 
     // ---- offline (cash) flow
 async function handleCashClaim() {
-  if (!selectedCourse || !user?.orgId) return;
+  if (!selectedCourse || !user) return;
   if (Object.keys(errors).length) return;
 
   setIsPaying(true);
@@ -332,8 +334,6 @@ async function handleCashClaim() {
     setPhotoUrl(file ? URL.createObjectURL(file) : null);
   }
 
-  // computed message if not signed in to an org
-  const orgGateError = !user || !user.orgId ? "Please sign in using your organisation account to view available courses." : "";
 
   // -------- Receipt capture (PDF / PNG) + Share --------
   function buildReceiptData() {
@@ -348,7 +348,8 @@ async function handleCashClaim() {
       method: (receipt?.method || "-").toString(),
       status: receipt?.status || "-",
       amount: receipt ? (receipt.amount / 100).toLocaleString("en-IN", { style: "currency", currency: receipt.currency || "INR" }) : "-",
-      enroll: receipt?.enrollment?.present ? "Enrollment: active" : `Enrollment: ${receipt?.enrollment?.status || "pending"}`
+      enroll: receipt?.enrollment?.present ? "Enrollment: active" : `Enrollment: ${receipt?.enrollment?.status || "pending"}`,
+      organization: selectedCourse?.orgName || "Platform",
     };
   }
 
@@ -406,6 +407,10 @@ async function handleCashClaim() {
     ctx.fillStyle = "#0f172a";
     ctx.font = "500 14px ui-sans-serif, system-ui";
     ctx.fillText(d.date, cardX + cardW - 20, cardY + 36);
+    // Org name below date (right-aligned)
+    ctx.fillStyle = "#64748b";
+    ctx.font = "11px ui-sans-serif, system-ui";
+    ctx.fillText(d.organization, cardX + cardW - 20, cardY + 52);
     ctx.textAlign = "left";
 
     // Divider
@@ -562,9 +567,9 @@ async function handleCashClaim() {
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading courses…
                   </span>
                 </div>
-              ) : (orgGateError || coursesError) ? (
+              ) : coursesError ? (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-                  {orgGateError || coursesError}
+                  {coursesError}
                 </div>
               ) : (
                 <CourseStep
@@ -579,17 +584,25 @@ async function handleCashClaim() {
           )}
 
           {step === 2 && (
-            <DetailsStep
-              values={{ fullName, age, gender, birth, address, mobile, email, photoUrl }}
-              onValues={{
-                fullName: setFullName,
-                age: (v) => setAge(v as number | ""),
-                gender: (v) => setGender(v as any),
-                birth: setBirth, address: setAddress, mobile: setMobile, email: setEmail,
-                photo: onPhotoChange
-              }}
-              errors={errors}
-            />
+            selectedCourseId && !selectedCourse ? (
+              <div className="h-28 grid place-items-center text-sm text-slate-600">
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading course…
+                </span>
+              </div>
+            ) : (
+              <DetailsStep
+                values={{ fullName, age, gender, birth, address, mobile, email, photoUrl }}
+                onValues={{
+                  fullName: setFullName,
+                  age: (v) => setAge(v as number | ""),
+                  gender: (v) => setGender(v as any),
+                  birth: setBirth, address: setAddress, mobile: setMobile, email: setEmail,
+                  photo: onPhotoChange
+                }}
+                errors={errors}
+              />
+            )
           )}
 
           {step === 3 && selectedCourse && (
@@ -611,10 +624,11 @@ async function handleCashClaim() {
               isPaying={isPaying}
               onPay={method === "online" ? handleOnlinePay : undefined}
               errors={errors}
-                receiptNo={receiptNo}
-  setReceiptNo={setReceiptNo}
-  referenceId={referenceId}
-  setReferenceId={setReferenceId}
+              receiptNo={receiptNo}
+              setReceiptNo={setReceiptNo}
+              referenceId={referenceId}
+              setReferenceId={setReferenceId}
+              orgName={selectedCourse?.orgName ?? null}
             />
           )}
 
@@ -640,6 +654,7 @@ async function handleCashClaim() {
                     student: { name: receipt.student?.name || fullName },
                     course: { title: receipt.course?.title || selectedCourse?.title || "" },
                     enrollment: { present: !!receipt.enrollment?.present, status: receipt.enrollment?.status || "pending" },
+                    organization: selectedCourse?.orgName || "Platform",
                   } : null}
                   onDownload={downloadReceipt}
                   onShare={shareReceipt}

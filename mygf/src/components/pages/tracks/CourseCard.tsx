@@ -199,6 +199,13 @@ export default function CourseCard({
           <span className="px-2 py-1 text-xs text-slate-700 border border-slate-300">{course.level}</span>
         </div>
 
+        {/* org badge */}
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-500">
+            {course.orgName || "Platform"}
+          </span>
+        </div>
+
         {/* Footer actions */}
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -14,6 +14,7 @@ type Receipt = {
   student?: { name?: string };
   course?: { title?: string };
   enrollment?: { present: boolean; status: string | null };
+  organization?: string;
 };
 
 export default function SuccessStep({
@@ -85,6 +86,13 @@ export default function SuccessStep({
             <div className="text-xs text-slate-500">Course</div>
             <div className="font-medium">{receipt?.course?.title || "-"}</div>
           </div>
+
+          {receipt?.organization && (
+            <div className="col-span-2 border-t border-slate-100 pt-2">
+              <div className="text-xs text-slate-500">Organization</div>
+              <div className="font-medium">{receipt.organization}</div>
+            </div>
+          )}
 
           <div>
             <div className="text-xs text-slate-500">Order ID</div>

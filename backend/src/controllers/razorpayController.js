@@ -5,6 +5,7 @@ import Payment from "../models/Payment.js";
 import Enrollment from "../models/Enrollment.js";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
+import Organization from "../models/Organization.js";
 
 const isOid = (v) => mongoose.isValidObjectId(v);
 
@@ -69,8 +70,8 @@ const { ObjectId } = mongoose.Types;
 const toId = (v) => (isOid(v) ? new ObjectId(String(v)) : null);
 
 async function ensureEnrollment({ studentId, courseId, orgId, paymentId, source, managerId }) {
-  // Validate ids; don’t crash the request, but do log
-  if (!isOid(studentId) || !isOid(courseId) || !isOid(orgId)) {
+  // Only studentId and courseId are required. orgId may be null for global courses.
+  if (!isOid(studentId) || !isOid(courseId)) {
     console.warn("[enrollment] skipped: bad ids", { studentId, courseId, orgId });
     return;
   }
@@ -112,15 +113,19 @@ export async function createOrder(req, res) {
     const actor = req.user;
     if (!actor) return res.status(401).json({ ok: false });
 
-    const { courseId, orgId, discountKind, couponCode, mode, partAmount } = req.body || {};
-    if (!isOid(courseId) || !isOid(orgId)) return res.status(400).json({ ok: false, message: "invalid ids" });
-    const managerId = await resolveManagerId(orgId);
+    const { courseId, discountKind, couponCode, mode, partAmount } = req.body || {};
+    if (!isOid(courseId)) return res.status(400).json({ ok: false, message: "invalid courseId" });
 
-    // robust student id for notes (dashboard display) 
+    // robust student id for notes (dashboard display)
     const studentIdForNotes = actor._id || actor.id || actor.sub || null;
 
-    const course = await Course.findOne({ _id: courseId, $or: [{ orgId }, { orgId: null }] }).lean();
+    // 🔒 Fetch course first — derive orgId from DB record, never trust frontend
+    const course = await Course.findOne({ _id: courseId, status: "published" }).lean();
     if (!course) return res.status(404).json({ ok: false, message: "course not found" });
+
+    // Authoritative orgId comes from the course record (non-negotiable)
+    const orgId = course.orgId ? String(course.orgId) : null;
+    const managerId = orgId ? await resolveManagerId(orgId) : null;
 
        // Course.price is stored in paise (integer). Keep as-is for Razorpay: 
 // Pricing (paise): MRP → course.discountPercent → coupon/ref 
@@ -173,7 +178,7 @@ const totalPaise = Math.max(0, salePaise - promoPaise);
         ...(partial && firstPaymentMin ? { first_payment_min_amount: firstPaymentMin } : {}),
         notes: {
           courseId: String(courseId),
-          orgId: String(orgId),
+          ...(orgId ? { orgId } : {}),
           ...(studentIdForNotes ? { studentId: String(studentIdForNotes) } : {}),
           paymentId: String(doc._id),
         },
@@ -380,11 +385,18 @@ export async function receipt(req, res) {
    }
 
     const [course, enrollment] = await Promise.all([
-      Course.findById(pay.courseId).select("_id title").lean(),
+      Course.findById(pay.courseId).select("_id title orgId").lean(),
       Enrollment.findOne({ studentId: pay.studentId, courseId: pay.courseId, orgId: pay.orgId })
         .select("_id status createdAt updatedAt")
         .lean(),
     ]);
+
+    // Resolve org name from course's orgId
+    let orgName = null;
+    if (course?.orgId) {
+      const org = await Organization.findById(course.orgId).select("name").lean();
+      orgName = org?.name || null;
+    }
 
     const receipt = {
       orderId: pay.providerOrderId,
@@ -397,6 +409,7 @@ export async function receipt(req, res) {
       dateISO: (pay.updatedAt || pay.createdAt)?.toISOString(),
       student: { id: pay.studentId, name: actor.name || actor.email },
       course: { id: course?._id, title: course?.title || "Course" },
+      orgName,
       enrollment: {
         present: !!enrollment,
         status: enrollment?.status || null,
