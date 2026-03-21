@@ -47,17 +47,21 @@ export function setAuthCookies(req, res, { accessToken, refreshToken }) {
   // 4. PHASE 2: production-grade SameSite policy.
   //    HTTPS (useHostPrefix=true) → "strict": strongest standard, no
   //    cross-site leakage. HTTP / cross-site → preserve existing lax/none.
-  const wantsCrossSite = process.env.CROSS_SITE === "1";
-  let sameSite;
-  if (useHostPrefix) {
-    sameSite = "strict"; // production standard on HTTPS
-  } else {
-    sameSite = wantsCrossSite ? "none" : "lax";
-  }
-  // Browsers DROP SameSite=None without Secure — fall back to Lax in HTTP.
-  if (sameSite === "none" && !secure) {
-    sameSite = "lax";
-  }
+const wantsCrossSite = process.env.CROSS_SITE === "1";
+let sameSite;
+
+if (wantsCrossSite) {
+  sameSite = "none";   // ✅ allow cross-site cookies
+} else if (useHostPrefix) {
+  sameSite = "strict"; // ✅ only for same-origin setups
+} else {
+  sameSite = "lax";
+}
+
+// Safety: browsers reject SameSite=None without Secure
+if (sameSite === "none" && !secure) {
+  sameSite = "lax";
+}
 
   const base = {
     httpOnly: true,
