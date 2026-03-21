@@ -23,8 +23,9 @@ export async function state(req, res) {
       } catch {}
     }
 
+    // Scope by studentId only — cross-org enrollments have orgId=course.orgId,
+    // NOT student.orgId. Filtering by student.orgId hides valid cross-org enrollments.
     const scope = { studentId };
-    if (orgId && isOid(orgId)) scope.orgId = orgId;
 
     const [enrollments, payments] = await Promise.all([
       Enrollment.find(scope).select("courseId status orgId updatedAt").lean(),

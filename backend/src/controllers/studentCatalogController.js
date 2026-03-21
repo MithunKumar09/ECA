@@ -20,15 +20,17 @@ function parseDurationTextToHours(input) {
 
 export async function listCourses(req, res) {
   try {
-    // Optional debug
-    try {
-      console.log(
-        "[studentCatalog.listCourses]",
-        "role:", req.user?.role,
-        "roles:", req.user?.roles,
-        "orgId(jwt):", req.user?.orgId
-      );
-    } catch {}
+    // Optional debug — set DEBUG_CATALOG=1 to enable; silent in production
+    if (process.env.DEBUG_CATALOG === "1") {
+      try {
+        console.log(
+          "[studentCatalog.listCourses]",
+          "role:", req.user?.role,
+          "roles:", req.user?.roles,
+          "orgId(jwt):", req.user?.orgId
+        );
+      } catch {}
+    }
 
     // All published public courses — visible to every authenticated user regardless of org membership
     const query = { status: "published", visibility: "public" };

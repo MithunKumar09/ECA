@@ -77,33 +77,51 @@ r.get("/latest", async (req, res) => {
 
 // POST /api/student/payments/claim
 r.post("/claim", async (req, res) => {
-  const actor = req.user;
-  // 🔒 orgId is NEVER trusted from client — always derived from course record
-  const { courseId, amount, receiptNo, referenceId, notes } = req.body || {};
-  if (!courseId || !amount) {
-    return res.status(400).json({ ok: false, message: "courseId and amount are required" });
-  }
+  try {
+    const actor = req.user;
+    // 🔒 orgId is NEVER trusted from client — always derived from course record
+    const { courseId, amount, receiptNo, referenceId, notes } = req.body || {};
+    if (!courseId || !amount) {
+      return res.status(400).json({ ok: false, message: "courseId and amount are required" });
+    }
 
-  const course = await Course.findById(courseId).lean();
-  if (!course) {
-    return res.status(404).json({ ok: false, message: "Course not found" });
-  }
-  const orgId = course.orgId ?? null;
+    const course = await Course.findById(courseId).lean();
+    if (!course) {
+      return res.status(404).json({ ok: false, message: "Course not found" });
+    }
 
-  const doc = await Payment.create({
-    type: "offline",
-    method: "upi",
-    status: "submitted",
-    amount: Math.floor(Number(amount)), // paise
-    currency: "INR",
-    orgId,
-    courseId,
-    studentId: actor._id || actor.id || actor.sub,
-    receiptNo: receiptNo || undefined,
-    referenceId: referenceId || undefined,
-    notes: typeof notes === "string" ? notes : JSON.stringify(notes || {}),
-  });
-  return res.status(201).json({ ok: true, payment: { id: String(doc._id) } });
+    // orgId must come from course — never from the request body
+    const orgId = course.orgId ?? null;
+    if (!isOid(orgId)) {
+      return res.status(400).json({
+        ok: false,
+        message: "This course has no owning organization. Cash claims are not supported for global courses.",
+      });
+    }
+
+    const doc = await Payment.create({
+      type: "offline",
+      method: "upi",
+      status: "submitted",
+      amount: Math.floor(Number(amount)), // paise
+      currency: "INR",
+      orgId,
+      courseId,
+      studentId: actor._id || actor.id || actor.sub,
+      receiptNo: receiptNo || undefined,
+      referenceId: referenceId || undefined,
+      notes: typeof notes === "string" ? notes : JSON.stringify(notes || {}),
+    });
+    return res.status(201).json({ ok: true, payment: { id: String(doc._id) } });
+  } catch (e) {
+    console.error("[student.payments.claim] error", e);
+    // Surface validation errors (e.g. required field missing) as 400, not silent 500
+    if (e?.name === "ValidationError") {
+      const msg = Object.values(e.errors || {}).map((v) => v.message).join("; ");
+      return res.status(400).json({ ok: false, message: msg || "Payment validation failed" });
+    }
+    return res.status(500).json({ ok: false, message: "Could not submit payment claim. Please try again." });
+  }
 });
 
 export default r;

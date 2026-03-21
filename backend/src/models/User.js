@@ -41,4 +41,6 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 userSchema.index({ updatedAt: -1 });
+// PERF: resolveManagerId() query — User.findOne({orgId,role,status}) was a full collection scan
+userSchema.index({ orgId: 1, role: 1, status: 1 }, { name: "orgId_1_role_1_status_1" });
 export default mongoose.model("User", userSchema);

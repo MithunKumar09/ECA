@@ -21,8 +21,10 @@ export async function rzpVerifyPayment(payload: {
   orgId: string;
   joinForm?: any; // persisted server-side into Payment.notes
 }) {
-  const { data } = await api.post("/checkout/razorpay/verify", payload);
-  return data as { ok: boolean };
+  // Extended timeout: verify path executes 6 sequential DB ops + external Razorpay API call.
+  // 25 s gives headroom beyond the global 15 s default without affecting other endpoints.
+  const { data } = await api.post("/checkout/razorpay/verify", payload, { timeout: 25000 });
+  return data as { ok: boolean; trusted?: boolean; enrollment?: { created: boolean } };
 }
 
 export async function rzpReceipt(orderId: string) {

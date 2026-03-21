@@ -19,8 +19,8 @@ import { useAuth } from "../../auth/store";
 import type { User } from "../../auth/store";
 import { useAuthHydration } from "../../hooks/useAuthHydration";
 // NEW: enrollments + modal
-import { api } from "../../api/client";
 import JoinNowModal from "../join/JoinNowModal";
+import { useEnrollmentStore } from "../../store/enrollmentStore";
 import { useWishlist } from "./tracks/wishlistStore";
 
 /**
@@ -167,19 +167,9 @@ function TracksBody({ user }: { user?: User }) {
   }, [normalizedCourses, activeChip, over12h, availability, debouncedQuery]);
 
   // -------------------------
-  // Premium / enrollment logic
+  // Premium / enrollment logic — single source of truth via global store
   // -------------------------
-  type ActiveEnrollment = {
-    course?: { id?: string };
-    courseId?: string;
-    premium?: boolean;
-    status?: string;        // 'paid' | 'premium' | ...
-    paymentStatus?: string; // 'paid'
-    access?: string;        // 'premium'
-    paidAt?: string | null;
-  };
-
-  const [premiumIds, setPremiumIds] = useState<Set<string>>(new Set());
+  const { premiumIds, tick, fetchActive } = useEnrollmentStore();
   const [showJoin, setShowJoin] = useState(false);
   const [joinCourseId, setJoinCourseId] = useState<string | undefined>(undefined);
   
@@ -219,35 +209,12 @@ function TracksBody({ user }: { user?: User }) {
     return s;
   }, [apiCourses]);
 
+  // Re-fetch enrollment state on mount and after each payment (tick increments
+  // 4 s after payment to give the backend time to commit the enrollment).
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get("/student/enrollments/active", { withCredentials: true });
-        const items: ActiveEnrollment[] = Array.isArray(res?.data?.items) ? res.data.items : [];
-
-        const paySet = new Set<string>();
-        items.forEach((e) => {
-          const id = String(e.courseId || e.course?.id || "");
-          if (!id) return;
-          const isPremium =
-            e.premium === true ||
-            e.status === "premium" ||
-            e.status === "paid" ||
-            e.paymentStatus === "paid" ||
-            e.access === "premium" ||
-            !!e.paidAt;
-          if (isPremium) paySet.add(id);
-        });
-
-        if (!cancelled) setPremiumIds(new Set<string>(paySet));
-      } catch {
-        if (!cancelled) setPremiumIds(new Set<string>());
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [freeIds, user?.id]);
+    if (!user?.id) return;
+    void fetchActive();
+  }, [tick, user?.id, fetchActive]);
 
   const isPremium = (courseId: string | number) =>
     freeIds.has(String(courseId)) || premiumIds.has(String(courseId));
@@ -394,8 +361,13 @@ function TracksBody({ user }: { user?: User }) {
         </button>
       )}
 
-      {/* NEW: payment/enroll modal opened when access is locked */}
-      {showJoin && <JoinNowModal selectedCourseId={joinCourseId} onClose={() => setShowJoin(false)} />}
+      {/* payment/enroll modal — enrollment state managed via useEnrollmentStore */}
+      {showJoin && (
+        <JoinNowModal
+          selectedCourseId={joinCourseId}
+          onClose={() => setShowJoin(false)}
+        />
+      )}
     </>
   );
 }

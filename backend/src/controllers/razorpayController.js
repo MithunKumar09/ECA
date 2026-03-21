@@ -44,6 +44,18 @@ async function rzpGetOrder(orderId) {
   } 
 }
 
+// ---- monitoring alert (non-blocking, non-throwing) ----
+function sendAlert(label, data) {
+  console.error(label, data);
+  const url = process.env.SLACK_WEBHOOK_URL;
+  if (!url) return;
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: `${label}\n\`\`\`${JSON.stringify(data, null, 2)}\`\`\`` }),
+  }).catch(() => {});
+}
+
 async function resolveManagerId(orgId) {
   try {
     const u = await User.findOne({
@@ -70,10 +82,13 @@ const { ObjectId } = mongoose.Types;
 const toId = (v) => (isOid(v) ? new ObjectId(String(v)) : null);
 
 async function ensureEnrollment({ studentId, courseId, orgId, paymentId, source, managerId }) {
-  // Only studentId and courseId are required. orgId may be null for global courses.
-  if (!isOid(studentId) || !isOid(courseId)) {
-    console.warn("[enrollment] skipped: bad ids", { studentId, courseId, orgId });
-    return;
+  // All three IDs are required. orgId must be a valid ObjectId (= course.orgId).
+  // Global courses (orgId=null) cannot create an enrollment — surface this explicitly.
+  if (!isOid(studentId) || !isOid(courseId) || !isOid(orgId)) {
+    console.warn("[enrollment] skipped: invalid ids", {
+      studentId: !!studentId, courseId: !!courseId, orgId: !!orgId,
+    });
+    return false;
   }
 
   const filter = { studentId, courseId, orgId };
@@ -92,7 +107,10 @@ async function ensureEnrollment({ studentId, courseId, orgId, paymentId, source,
   if (paymentId) update.$set = { paymentId };
 
   try {
-    await Enrollment.updateOne(filter, update, { upsert: true, setDefaultsOnInsert: true });
+    const result = await Enrollment.updateOne(filter, update, { upsert: true, setDefaultsOnInsert: true });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[ENROLLMENT RESULT]", { student: String(studentId), course: String(courseId), org: String(orgId), upserted: result.upsertedCount });
+    }
 
     // Backfill managerId only if it was absent
     if (managerId) {
@@ -101,10 +119,17 @@ async function ensureEnrollment({ studentId, courseId, orgId, paymentId, source,
         { $set: { managerId } }
       );
     }
+    return true;
   } catch (e) {
-    // If verify() and webhook race, a dup-key can happen; ignore that one.
-    if (e?.code === 11000) return;
-    console.error("[enrollment] upsert failed:", e?.message);
+    // verify() and webhook may race — duplicate key is idempotent success
+    if (e?.code === 11000) {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[ENROLLMENT RESULT]", { student: String(studentId), course: String(courseId), duplicate: true });
+      }
+      return true;
+    }
+    console.error("[enrollment] upsert failed:", e?.message, { studentId, courseId, orgId });
+    return false;
   }
 }
 
@@ -236,33 +261,48 @@ export async function verifyPayment(req, res) {
     );
     const doc = { ...doc0, providerPaymentId: razorpay_payment_id };
 
-  // 🔒 TRUSTED path: verify with provider if webhook hasn't arrived yet 
-  let trusted = false; 
-  const pay = await rzpGetPayment(razorpay_payment_id); 
-  if (pay && pay.status === "captured" && pay.order_id === razorpay_order_id) { 
-    trusted = true; 
-    await Payment.updateOne( 
-      { _id: doc._id }, 
-      { $set: { providerVerified: true, providerMethod: pay.method || undefined } } 
-    ); 
-      // managerId: prefer Payment.managerId, else resolve once
-  const mId = doc.managerId || (await resolveManagerId(doc.orgId));
-  if (mId && !doc.managerId) {
-    await Payment.updateOne({ _id: doc._id }, { $set: { managerId: mId } });
-  }
-      // normalize IDs (in case any are strings)
-      const sId = toId(doc.studentId || actor._id);
-      const cId = toId(doc.courseId);
-      const oId = toId(doc.orgId);
-      await ensureEnrollment({
-        studentId: sId, courseId: cId, orgId: oId,
-    paymentId: doc._id,
-    source: "online",
-    managerId: mId || null,
-  });
-  } 
- 
-  return res.json({ ok: true, trusted });
+    // 🔒 TRUSTED path: verify with provider — only controls providerVerified flag
+    let trusted = false;
+    const pay = await rzpGetPayment(razorpay_payment_id);
+    if (pay && pay.status === "captured" && pay.order_id === razorpay_order_id) {
+      trusted = true;
+      await Payment.updateOne(
+        { _id: doc._id },
+        { $set: { providerVerified: true, providerMethod: pay.method || undefined } }
+      );
+    }
+
+    // Resolve managerId regardless of trusted state
+    const mId = doc.managerId || (await resolveManagerId(doc.orgId));
+    if (mId && !doc.managerId) {
+      await Payment.updateOne({ _id: doc._id }, { $set: { managerId: mId } });
+    }
+
+    // ALWAYS create enrollment after signature verification.
+    // orgId is sourced from Payment.orgId which was set from course.orgId at order creation.
+    // NEVER use req.body.orgId or actor.orgId here.
+    const sId = toId(doc.studentId || actor._id);
+    const cId = toId(doc.courseId);
+    const oId = toId(doc.orgId);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[VERIFY PAYMENT]", { student: String(sId), course: String(cId), org: String(oId), trusted });
+    }
+    const enrollOk = await ensureEnrollment({
+      studentId: sId, courseId: cId, orgId: oId,
+      paymentId: doc._id,
+      source: "online",
+      managerId: mId || null,
+    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[ENROLLMENT RESULT]", { result: enrollOk, order: razorpay_order_id });
+    }
+    if (enrollOk === false) {
+      sendAlert("[CRITICAL] PAYMENT WITHOUT ENROLLMENT", {
+        orderId: razorpay_order_id, studentId: String(sId), courseId: String(cId), orgId: String(oId),
+      });
+    }
+
+    return res.json({ ok: true, trusted, enrollment: { created: enrollOk !== false } });
   } catch (e) {
     console.error("[rzp.verify]", e);
     return res.status(500).json({ ok: false, message: "verify error" });
@@ -285,8 +325,9 @@ export async function webhook(req, res) {
 
     const payload = JSON.parse(raw.toString("utf8"));
     const et = payload?.event || payload?.type || "";
-    // helpful log 
-    console.log(`[rzp.webhook] ${et} id=${eventId}`); 
+    if (process.env.NODE_ENV === "development") {
+      console.log("[RZP WEBHOOK]", { event: et, eventId });
+    }
 
     // idempotency guard using event id 
     if (eventId) { 
@@ -354,7 +395,12 @@ export async function webhook(req, res) {
     if (mId && !doc.managerId) {
       await Payment.updateOne({ _id: doc._id }, { $set: { managerId: mId } });
     }
-await ensureEnrollment({ studentId: sId, courseId: cId, orgId: oId, paymentId: doc._id, source: "online", managerId: mId || null });
+const wEnrollOk = await ensureEnrollment({ studentId: sId, courseId: cId, orgId: oId, paymentId: doc._id, source: "online", managerId: mId || null });
+    if (wEnrollOk === false) {
+      sendAlert("[CRITICAL] PAYMENT WITHOUT ENROLLMENT (webhook)", {
+        event: et, orderId, studentId: String(sId), courseId: String(cId), orgId: String(oId),
+      });
+    }
   }
     }
     }

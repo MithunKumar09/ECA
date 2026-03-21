@@ -84,7 +84,8 @@ const corsOptions = {
     }
     
     const isAllowed = allow.includes(origin);
-    if (!isAllowed && process.env.NODE_ENV === "production") {
+    // Gate CORS warn behind DEBUG_CORS=1 to prevent log flood from bots/scanners in production
+    if (!isAllowed && process.env.NODE_ENV === "production" && process.env.DEBUG_CORS === "1") {
       console.warn(`[cors] Origin "${origin}" not in allowlist. Allowed: [${allow.join(", ")}]`);
     }
     return cb(null, isAllowed); 

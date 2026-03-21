@@ -27,10 +27,14 @@ export async function connectMongo() {
     serverSelectionTimeoutMS: 5_000,
     // Abort stalled socket operations after 30 s to avoid indefinite hangs
     socketTimeoutMS: 30_000,
-    // Allow up to 10 concurrent DB operations before queuing
-    maxPoolSize: 10,
+    // Allow up to 50 concurrent DB operations before queuing (was 10 — too low for prod)
+    maxPoolSize: 50,
+    // Pre-warm 5 connections on startup to eliminate cold-start latency
+    minPoolSize: 5,
     // Detect primary election / failover within 10 s
     heartbeatFrequencyMS: 10_000,
+    // Fail queued connection requests after 5 s instead of hanging indefinitely
+    waitQueueTimeoutMS: 5_000,
   });
 
   connected = true;

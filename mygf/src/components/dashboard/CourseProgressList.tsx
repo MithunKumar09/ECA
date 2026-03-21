@@ -1,29 +1,21 @@
 // mygf/src/components/dashboard/CourseProgressList.tsx
-import  { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Card from "./ui/Card";
 import CourseCard from "../pages/tracks/CourseCard";
 import type { Course } from "../pages/tracks/types";
 import { fetchCoursesPage, type Audience } from "../pages/tracks/api";
-import { api } from "../../api/client";
 import { useAuth } from "../../auth/store";
+import { useEnrollmentStore } from "../../store/enrollmentStore";
 
 /**
- * Dashboard “Your courses” card.
- * - Shows the user’s 2 most recent enrolled PREMIUM courses (paid/premium access).
- * - If none, falls back to 2 recent PREMIUM courses from the user’s organisation (not enrolled).
- * - Reuses the exact CourseCard design from tracks.
- * - Keeps the rest of the dashboard logic untouched.
+ * Dashboard "Your courses" card.
+ *
+ * Enrollment state comes exclusively from useEnrollmentStore (global store).
+ * This component only fetches courses — never enrollments directly.
+ *
+ * Reactive: when premiumIds in the store updates (optimistic OR server-confirmed),
+ * `courses` useMemo recomputes and the UI updates without a full reload.
  */
-
-type ActiveEnrollment = {
-  course?: { id?: string };
-  courseId?: string;
-  premium?: boolean;
-  status?: string;        // 'paid' | 'premium' | ...
-  paymentStatus?: string; // 'paid'
-  access?: string;        // 'premium'
-  paidAt?: string | null;
-};
 
 function useAudience(): { audience: Audience; orgId: string | null } {
   const { user } = useAuth();
@@ -39,141 +31,103 @@ function useAudience(): { audience: Audience; orgId: string | null } {
 
 export default function CourseProgressList() {
   const { audience, orgId } = useAudience();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
 
+  // ── Enrollment state — single source of truth ──────────────────────────────
+  const { premiumIds, loading: enrollmentLoading, fetchActive } = useEnrollmentStore();
+
+  // ── Course catalog (no enrollment data here) ────────────────────────────────
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Combined loading flag: show skeleton until both courses AND enrollments are ready
+  const loading = coursesLoading || enrollmentLoading;
+
+  // Trigger the global enrollment fetch on mount.
+  // The store deduplicates concurrent calls via its loading flag.
+  // This ensures the Dashboard works correctly even when the user navigates
+  // directly here (without passing through TracksAndCollectionsSection first).
+  useEffect(() => {
+    void fetchActive();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load candidate courses (org bucket first, then public).
+  // Does NOT fetch enrollments — that is the store's responsibility.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setCoursesLoading(true);
     setError(null);
 
     async function load() {
-      // Helper to fetch fallback premium suggestions
-      async function fetchFallback(): Promise<Course[]> {
-        const PAGE = 24;
-        const buckets: { aud: Audience; org: string | null }[] = [
-          { aud: "org", org: orgId },
-          { aud: "public", org: null },
-        ];
-        const want: Course[] = [];
-        for (const b of buckets) {
-          const { items: pageItems } = await fetchCoursesPage({
-            audience: b.aud,
-            orgId: b.org || (undefined as any),
-            limit: PAGE,
-          });
-          const premium = pageItems.filter((c) => {
-            const paise =
-              typeof c.pricePaise === "number"
-                ? c.pricePaise
-                : typeof (c as any).price === "number"
-                ? Math.round((c as any).price * 100)
-                : 0;
-            return paise > 0;
-          });
-          for (const m of premium) {
-            if (want.find((x) => String(x.id) === String(m.id))) continue;
-            want.push(m);
-            if (want.length >= 2) break;
-          }
-          if (want.length >= 2) break;
-        }
-        return want.slice(0, 2);
-      }
-
       try {
-        // 1) Fetch active enrollments to know which course IDs are paid/premium
-        const res = await api.get("/student/enrollments/active", { withCredentials: true });
-        const items: ActiveEnrollment[] = Array.isArray(res?.data?.items) ? res.data.items : [];
-        const paid = new Set<string>();
-        items.forEach((e) => {
-          const id = String(e.courseId || e.course?.id || "");
-          if (!id) return;
-          const isPrem =
-            e.premium === true ||
-            e.status === "premium" ||
-            e.status === "paid" ||
-            e.paymentStatus === "paid" ||
-            e.access === "premium" ||
-            !!e.paidAt;
-          if (isPrem) paid.add(id);
-        });
-
-        // 2) Build a small catalog (public + org) and pick the user’s premium courses (max 2)
-        const collected: Course[] = [];
         const PAGE = 24;
-
         const buckets: { aud: Audience; org: string | null }[] = [
           { aud: "org", org: orgId },
           { aud: "public", org: null },
         ];
+        const collected: Course[] = [];
 
         for (const b of buckets) {
-          const { items: pageItems, nextCursor } = await fetchCoursesPage({
+          const { items, nextCursor } = await fetchCoursesPage({
             audience: b.aud,
             orgId: b.org || (undefined as any),
             limit: PAGE,
           });
-          const matches = pageItems.filter((c) => paid.has(String(c.id)));
-          for (const m of matches) {
-            if (collected.find((x) => String(x.id) === String(m.id))) continue;
-            collected.push(m);
-            if (collected.length >= 2) break;
+          for (const c of items) {
+            if (collected.find((x) => String(x.id) === String(c.id))) continue;
+            collected.push(c);
           }
-          if (collected.length >= 2) break;
-
-          if (nextCursor && collected.length < 2) {
+          // Fetch one more page per bucket to widen the match window
+          if (nextCursor) {
             const { items: more } = await fetchCoursesPage({
               audience: b.aud,
               orgId: b.org || (undefined as any),
               limit: PAGE,
               cursor: nextCursor,
             });
-            const moreMatches = more.filter((c) => paid.has(String(c.id)));
-            for (const m of moreMatches) {
-              if (collected.find((x) => String(x.id) === String(m.id))) continue;
-              collected.push(m);
-              if (collected.length >= 2) break;
+            for (const c of more) {
+              if (collected.find((x) => String(x.id) === String(c.id))) continue;
+              collected.push(c);
             }
           }
         }
 
-        if (collected.length < 1) {
-          const fb = await fetchFallback();
-          if (!cancelled) {
-            setEnrolledIds(new Set()); // fallback courses are NOT enrolled
-            setCourses(fb);
-          }
-        } else {
-          if (!cancelled) {
-            setEnrolledIds(new Set(paid)); // only actually enrolled IDs
-            setCourses(collected.slice(0, 2));
-          }
-        }
+        if (!cancelled) setAllCourses(collected);
       } catch (e) {
         console.error("[Dashboard.CourseProgressList] load error", e);
-        // graceful fallback even if enrollments API errors
-        try {
-          const fb = await fetchFallback();
-          if (!cancelled) {
-            setEnrolledIds(new Set()); // enrollment unknown, do not mark as enrolled
-            setCourses(fb);
-          }
-        } catch (e2) {
-          if (!cancelled) setError("Failed to load courses");
-        }
+        if (!cancelled) setError("Failed to load courses");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setCoursesLoading(false);
       }
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [audience, orgId]);
+
+  /**
+   * Derive displayed courses reactively.
+   *
+   * Re-runs whenever allCourses OR premiumIds changes — so a payment that
+   * calls addOptimistic() in the store will cause this to recompute
+   * immediately without any local state update.
+   *
+   * Priority:
+   *   1. Enrolled courses (in premiumIds) → up to 2
+   *   2. Fallback: premium-priced courses as suggestions
+   */
+  const courses = useMemo(() => {
+    const enrolled = allCourses.filter((c) => premiumIds.has(String(c.id)));
+    if (enrolled.length > 0) return enrolled.slice(0, 2);
+
+    // Fallback: suggest paid courses the student hasn't enrolled in yet
+    return allCourses
+      .filter((c) => {
+        const paise = typeof c.pricePaise === "number" ? c.pricePaise : 0;
+        return paise > 0;
+      })
+      .slice(0, 2);
+  }, [allCourses, premiumIds]);
 
   return (
     <Card className="p-8">
@@ -203,7 +157,7 @@ export default function CourseProgressList() {
               course={course}
               isWishlisted={false}
               onToggleWishlist={() => {}}
-              isPremium={enrolledIds.has(String(course.id))}
+              isPremium={premiumIds.has(String(course.id))}
               onRequireEnroll={() => {}}
             />
           ))}

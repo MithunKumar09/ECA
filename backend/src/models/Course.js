@@ -58,5 +58,7 @@ platformFee: { type: Number, default: 4900 },
 
 CourseSchema.index({ orgId: 1, slug: 1 }, { unique: false, sparse: true });
 CourseSchema.index({ orgId: 1, ownerId: 1, status: 1 });
+// PERF: catalog query index — Course.find({status,visibility}) was a full collection scan
+CourseSchema.index({ status: 1, visibility: 1 }, { name: "status_1_visibility_1" });
 
 export default mongoose.models.Course ?? mongoose.model("Course", CourseSchema);

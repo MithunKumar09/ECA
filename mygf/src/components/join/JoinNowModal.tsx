@@ -17,13 +17,14 @@ import { api } from "../../api/client"; // <-- added back
 import { useJoinCatalog, type CatalogState } from "./store/useJoinCatalog";
 import { useShallow } from "zustand/react/shallow";
 import { claimReceipt } from "../../api/payments";
+import { useEnrollmentStore } from "../../store/enrollmentStore";
 
 // lazy imports to keep bundle small
 const loadJsPDF = () => import("jspdf");
 
 export default function JoinNowModal({
   onClose,
-  selectedCourseId,                     // NEW: optional preselection prop
+  selectedCourseId,                     // optional preselection: skips to step 2
 }: {
   onClose: () => void;
   selectedCourseId?: string;
@@ -64,8 +65,10 @@ export default function JoinNowModal({
   const [partAmount, setPartAmount] = React.useState<number | "">("");
   const [isPaying, setIsPaying] = React.useState(false);
   const [paid, setPaid] = React.useState(false);
-   const [receiptNo, setReceiptNo] = React.useState<string>(""); 
+   const [receiptNo, setReceiptNo] = React.useState<string>("");
  const [referenceId, setReferenceId] = React.useState<string>("");
+  // Enrollment failure state: payment captured but enrollment not created
+  const [payError, setPayError] = React.useState<string | null>(null);
 
   // real receipt/status
   const [orderId, setOrderId] = React.useState<string | null>(null);
@@ -76,6 +79,12 @@ export default function JoinNowModal({
   // auth (Zustand)
   const { user, status, hydrate } = useAuth();
   React.useEffect(() => { if (status === "idle") hydrate(); }, [status, hydrate]);
+
+  // enrollment store — single source of truth
+  const { addOptimistic, refresh, premiumIds } = useEnrollmentStore();
+
+  // Prevent re-payment of an already-enrolled course
+  const alreadyEnrolled = !!selectedCourse && premiumIds.has(String(selectedCourse.id));
 
   // ⛔️ STOP refetching on every select:
   // Only (re)load when we actually show Step 1 AND auth is ready.
@@ -177,6 +186,10 @@ const total = Math.max(0, base - discount);
   async function handleOnlinePay() {
     if (!selectedCourse || !user) return;
     setIsPaying(true);
+    setPayError(null);
+    if (import.meta.env.DEV) {
+      console.log("[PAYMENT REQUEST]", { courseId: selectedCourse.id, sentOrgId: user.orgId, method: "online" });
+    }
     try {
       const order = await rzpCreateOrder({
         courseId: selectedCourse.id,
@@ -202,7 +215,7 @@ const total = Math.max(0, base - discount);
         method: { upi: true, netbanking: true, card: true, wallet: true, paylater: true },
         handler: async (resp: any) => {
           try {
-            await rzpVerifyPayment({
+            const verifyResp = await rzpVerifyPayment({
               razorpay_order_id: resp.razorpay_order_id,
               razorpay_payment_id: resp.razorpay_payment_id,
               razorpay_signature: resp.razorpay_signature,
@@ -210,6 +223,17 @@ const total = Math.max(0, base - discount);
               orgId: String(user.orgId),
               joinForm: { fullName, age, gender, birth, address, mobile, email, photo: photoUrl },
             });
+            if (import.meta.env.DEV) {
+              console.log("[PAYMENT RESPONSE]", verifyResp);
+              console.log("[ENROLLMENT RESULT]", verifyResp.enrollment);
+            }
+            if (!verifyResp.enrollment?.created) {
+              setPayError(
+                "Your payment was received but enrollment setup failed. Please check your dashboard in a few minutes. If the issue persists, contact support with Order ID: " +
+                  resp.razorpay_order_id
+              );
+              return;
+            }
 
             // fetch real receipt/status
             setLoadingReceipt(true);
@@ -218,10 +242,33 @@ const total = Math.max(0, base - discount);
             setPaid(true);
             setStep(4);
 
-            // 🔄 optional: mark catalog stale so next open revalidates
+            // Instant unlock via global store (optimistic — no flicker)
+            if (selectedCourse?.id) {
+              addOptimistic(selectedCourse.id);
+              // Delayed server-confirm: merges (never replaces) after backend commits
+              setTimeout(() => refresh(), 4000);
+            }
+
+            // mark catalog stale so next modal open revalidates
             invalidateCatalog();
-          } catch (e) {
-            alert("Payment verification failed. If debited, contact support.");
+          } catch (e: unknown) {
+            // 409 = already enrolled: treat as success, unlock course
+            const status =
+              e !== null &&
+              typeof e === "object" &&
+              "response" in e &&
+              e.response !== null &&
+              typeof e.response === "object" &&
+              "status" in e.response
+                ? (e.response as { status: unknown }).status
+                : undefined;
+            if (status === 409) {
+              if (selectedCourse?.id) addOptimistic(selectedCourse.id);
+              setPaid(true);
+              setStep(4);
+            } else {
+              alert("Payment verification failed. If debited, contact support.");
+            }
           } finally {
             setLoadingReceipt(false);
             setIsPaying(false);
@@ -260,14 +307,20 @@ async function handleCashClaim() {
       orgId: user.orgId,
     };
 
- await claimReceipt({
-   orgId: String(user.orgId),
-   courseId: selectedCourse.id,
-   amount: paise,
-   receiptNo: receiptNo?.trim() || undefined,
-   referenceId: referenceId?.trim() || undefined,
-   notes: JSON.stringify(notePayload),
- });
+    if (import.meta.env.DEV) {
+      console.log("[PAYMENT REQUEST]", { courseId: selectedCourse.id, sentOrgId: user.orgId, method: "cash", paise });
+    }
+    await claimReceipt({
+      orgId: String(user.orgId),
+      courseId: selectedCourse.id,
+      amount: paise,
+      receiptNo: receiptNo?.trim() || undefined,
+      referenceId: referenceId?.trim() || undefined,
+      notes: JSON.stringify(notePayload),
+    });
+    if (import.meta.env.DEV) {
+      console.log("[PAYMENT RESPONSE]", { method: "cash", status: "submitted" });
+    }
 
     // ... your existing success/receipt UI ...
     setReceipt({
@@ -285,6 +338,11 @@ async function handleCashClaim() {
     });
     setPaid(true);
     setStep(4);
+
+    // Unlock the course immediately in the UI.
+    // Cash payments are pending admin verification, so no server re-fetch is
+    // scheduled — the course stays unlocked optimistically until next page load.
+    if (selectedCourse?.id) addOptimistic(selectedCourse.id);
 
     // clear the optional fields
     setReceiptNo("");
@@ -606,7 +664,20 @@ async function handleCashClaim() {
           )}
 
           {step === 3 && selectedCourse && (
-            <PaymentStep
+            <>
+              {payError && (
+                <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  <span className="flex-1">{payError}</span>
+                  <button
+                    onClick={() => setPayError(null)}
+                    className="ml-2 font-bold text-amber-600 hover:text-amber-900"
+                    aria-label="Dismiss"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              <PaymentStep
               course={selectedCourse}
               total={total}
               base={base}
@@ -630,6 +701,7 @@ async function handleCashClaim() {
               setReferenceId={setReferenceId}
               orgName={selectedCourse?.orgName ?? null}
             />
+            </>
           )}
 
           {step === 4 && paid && (
@@ -691,7 +763,7 @@ async function handleCashClaim() {
               {step === 3 && (
 <button
   onClick={method === "online" ? handleOnlinePay : handleCashClaim}
-  disabled={isPaying || Object.keys(errors).length > 0}
+  disabled={alreadyEnrolled || isPaying || Object.keys(errors).length > 0}
   className={classNames(
     "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white",
     isPaying ? "bg-indigo-400" : "bg-indigo-600 hover:bg-indigo-700",

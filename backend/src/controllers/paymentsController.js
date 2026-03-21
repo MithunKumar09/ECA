@@ -6,6 +6,18 @@ import User from "../models/User.js";
 import Course from "../models/Course.js";
 import Enrollment from "../models/Enrollment.js";
 
+// ---- monitoring alert (non-blocking, non-throwing) ----
+function sendAlert(label, data) {
+  console.error(label, data);
+  const url = process.env.SLACK_WEBHOOK_URL;
+  if (!url) return;
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: `${label}\n\`\`\`${JSON.stringify(data, null, 2)}\`\`\`` }),
+  }).catch(() => {});
+}
+
 // ------------------------ helpers ------------------------
 const isOid = (v) => mongoose.isValidObjectId(v);
 const toId = (v) => (v && typeof v === "object" && v._id ? v._id : v);
@@ -138,16 +150,22 @@ export async function createOffline(req, res) {
       return res.status(400).json({ ok: false, message: "invalid studentId or courseId" });
     }
 
-    // Ensure student belongs to org
+    // Ensure student belongs to admin's org
     const student = await User.findOne({ _id: studentId, orgId: toId(actor.orgId) }).select("_id email");
     if (!student) return res.status(404).json({ ok: false, message: "student not found in org" });
 
-    // Ensure course is org's (or global)
+    // Fetch course — marketplace model: admin may create payments for any published course.
+    // Payment.orgId is always derived from course.orgId, never from actor.orgId.
     const course = await Course.findOne({
       _id: courseId,
-      $or: [{ orgId: toId(actor.orgId) }, { orgId: null }],
-    }).select("_id");
-    if (!course) return res.status(404).json({ ok: false, message: "course not found for org" });
+      status: { $ne: "draft" },
+    }).select("_id orgId");
+    if (!course) return res.status(404).json({ ok: false, message: "course not found" });
+
+    const courseOrgId = course.orgId ? toId(course.orgId) : null;
+    if (!isOid(courseOrgId)) {
+      return res.status(400).json({ ok: false, message: "course has no owning org; contact superadmin" });
+    }
 
     const submittedBy = pickActorId(actor);
     const managerId = pickManagerId(actor);
@@ -158,7 +176,7 @@ export async function createOffline(req, res) {
       status: "submitted",
       amount: Math.floor(Number(amount)),
       currency: "INR",
-      orgId: toId(actor.orgId),
+      orgId: courseOrgId,          // FIXED: course.orgId, not actor.orgId
       courseId: toId(courseId),
       studentId: toId(studentId),
       receiptNo: receiptNo || undefined,
@@ -182,7 +200,13 @@ async function ensureEnrollment({ studentId, courseId, orgId, paymentId, source,
   const oid = toId(orgId);
   const pid = paymentId ? toId(paymentId) : null;
 
-  if (!isOid(sid) || !isOid(cid) || !isOid(oid)) return;
+  // All three IDs required. orgId must be course.orgId (non-null).
+  if (!isOid(sid) || !isOid(cid) || !isOid(oid)) {
+    console.warn("[ensureEnrollment] skipped: invalid ids", {
+      studentId: !!sid, courseId: !!cid, orgId: !!oid,
+    });
+    return false;
+  }
 
   // Compose filter without paymentId to avoid write conflicts on upsert
   const filter = { studentId: sid, courseId: cid, orgId: oid };
@@ -203,7 +227,10 @@ async function ensureEnrollment({ studentId, courseId, orgId, paymentId, source,
   }
 
   try {
-    await Enrollment.updateOne(filter, update, { upsert: true, setDefaultsOnInsert: true });
+    const result = await Enrollment.updateOne(filter, update, { upsert: true, setDefaultsOnInsert: true });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[ENROLLMENT RESULT]", { student: String(sid), course: String(cid), org: String(oid), upserted: result.upsertedCount });
+    }
 
     // Backfill managerId if missing
     if (managerId) {
@@ -212,10 +239,16 @@ async function ensureEnrollment({ studentId, courseId, orgId, paymentId, source,
         { $set: { managerId: toId(managerId) } }
       );
     }
+    return true;
   } catch (e) {
-    if (e?.code === 11000) return; // idempotent in race
-    // eslint-disable-next-line no-console
-    console.warn("[ensureEnrollment] non-fatal", e?.message || e);
+    if (e?.code === 11000) {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[ENROLLMENT RESULT]", { student: String(sid), course: String(cid), duplicate: true });
+      }
+      return true; // idempotent in race
+    }
+    console.error("[ensureEnrollment] upsert failed:", e?.message, { studentId: sid, courseId: cid, orgId: oid });
+    return false;
   }
 }
 
@@ -231,14 +264,36 @@ export async function verify(req, res) {
 
     const verifiedBy = pickActorId(actor) || null;
 
-    // Only allow verifying org-scoped offline payments in submitted/pending/claimed states
+    // Step 1: Load candidate by _id only — no orgId filter yet (cross-org support)
+    const candidate = await Payment.findOne({ _id: id, type: "offline" }).lean();
+    if (!candidate) return res.status(404).json({ ok: false, message: "payment not found" });
+
+    // Step 2: Authorization — admin may verify if they own the course's org OR the student's org.
+    // This supports the cross-org case: student from Org A buys course from Org B;
+    // both Org A admin (manages the student) and Org B admin (owns the course) can verify.
+    const payOrgMatch = String(toId(candidate.orgId)) === String(orgId);
+    let authorized = payOrgMatch;
+    if (!authorized && candidate.studentId) {
+      const studentInOrg = await User.findOne({ _id: candidate.studentId, orgId }).select("_id").lean();
+      authorized = !!studentInOrg;
+    }
+    if (!authorized) {
+      return res.status(403).json({ ok: false, message: "not authorized to verify this payment" });
+    }
+
+    // Idempotent: already captured
+    if (candidate.status === "captured") {
+      return res.json(sanitize(candidate));
+    }
+
+    // Status guard
+    if (!["submitted", "pending", "claimed"].includes(candidate.status)) {
+      return res.status(400).json({ ok: false, message: "payment not verifiable in current status" });
+    }
+
+    // Step 3: Atomic status update (no orgId in filter — authorization already passed above)
     const doc = await Payment.findOneAndUpdate(
-      {
-        _id: id,
-        orgId,
-        type: "offline",
-        status: { $in: ["submitted", "pending", "claimed"] },
-      },
+      { _id: id, status: { $in: ["submitted", "pending", "claimed"] } },
       { $set: { status: "captured", verifiedBy, verifiedAt: new Date() } },
       { new: true }
     )
@@ -246,25 +301,31 @@ export async function verify(req, res) {
       .lean();
 
     if (!doc) {
-      // If already captured, return as-is (idempotent UX)
-      const already = await Payment.findOne({ _id: id, orgId }).lean();
-      if (already && already.status === "captured") {
-        return res.json(sanitize(already));
-      }
+      // Concurrent update — check idempotent state
+      const already = await Payment.findOne({ _id: id }).lean();
+      if (already?.status === "captured") return res.json(sanitize(already));
       return res.status(404).json({ ok: false, message: "payment not verifiable" });
     }
 
-    // Derive managerId similarly to online flow
+    // Derive managerId from actor or org lookup
     const managerId = pickManagerId(actor) || (await resolveManagerId(orgId));
 
-    await ensureEnrollment({
+    const enrollOk = await ensureEnrollment({
       studentId: doc.studentId,
       courseId: doc.courseId,
-      orgId: doc.orgId,
+      orgId: doc.orgId,          // always course.orgId (set at payment creation)
       paymentId: doc._id,
       source: "offline",
       managerId,
     });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[ENROLLMENT RESULT]", { result: enrollOk, paymentId: String(doc._id) });
+    }
+    if (enrollOk === false) {
+      sendAlert("[CRITICAL] PAYMENT WITHOUT ENROLLMENT (offline verify)", {
+        paymentId: String(doc._id), studentId: String(doc.studentId), courseId: String(doc.courseId), orgId: String(doc.orgId),
+      });
+    }
 
     return res.json(sanitize(doc));
   } catch (e) {

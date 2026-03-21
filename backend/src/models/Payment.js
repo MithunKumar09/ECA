@@ -49,5 +49,10 @@ PaymentSchema.index(
   { unique: true, partialFilterExpression: { status: "captured" } }
 );
 PaymentSchema.index({ providerOrderId: 1, createdAt: -1 });
+// PERF: standalone studentId — enables Payment.find({studentId}) IXSCAN
+// (existing compound {orgId,courseId,studentId} requires orgId as lead key)
+PaymentSchema.index({ studentId: 1 }, { name: "studentId_1" });
+// PERF: webhookEventId — enables idempotency guard (Payment.exists) IXSCAN
+PaymentSchema.index({ webhookEventId: 1 }, { name: "webhookEventId_1", sparse: true });
 
 export default mongoose.models.Payment ?? mongoose.model("Payment", PaymentSchema);

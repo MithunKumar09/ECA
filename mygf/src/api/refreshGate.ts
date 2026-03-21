@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-const DBG = true; // flip to false to silence
+const DBG = import.meta.env.DEV; // active in dev builds only; silent in production
 const LOCK_KEY = "eca:auth:refresh_lock";
 const SIGNAL_KEY = "eca:auth:refresh_signal";
 const TERMINATED_KEY = "eca:auth:terminated";
