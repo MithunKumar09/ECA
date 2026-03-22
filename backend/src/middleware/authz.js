@@ -1,5 +1,7 @@
 //backend/src/middleware/authz.js
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import User from "../models/User.js";
 
 export function requireAuth(req, res, next) {
   const auth = req.headers.authorization || "";
@@ -103,5 +105,33 @@ export function requireAnyRole(...roles) {
 
 export function requireAuthNoRole(req, res, next) {
   return requireAuth(req, res, next);
+}
+
+/**
+ * requireRecentAuth — verifies the caller's current password before
+ * allowing destructive settings changes (password, email, 2FA disable).
+ *
+ * Expects `req.body.currentPassword` (or `req.body.password` as alias).
+ * Must be used AFTER requireAuth so req.user is populated.
+ */
+export async function requireRecentAuth(req, res, next) {
+  const raw = req.body?.currentPassword ?? req.body?.password ?? "";
+  if (!raw || typeof raw !== "string") {
+    return res.status(400).json({ ok: false, message: "Current password is required" });
+  }
+
+  try {
+    const user = await User.findById(req.user?._id).select("+passwordHash");
+    if (!user) return res.status(401).json({ ok: false, message: "User not found" });
+
+    const valid = await bcrypt.compare(raw, user.passwordHash || "");
+    if (!valid) return res.status(400).json({ ok: false, message: "Current password is incorrect" });
+
+    // Attach the loaded user doc so downstream controllers skip a second DB read
+    req.authenticatedUser = user;
+    next();
+  } catch (e) {
+    return res.status(500).json({ ok: false, message: "Authentication check failed" });
+  }
 }
 

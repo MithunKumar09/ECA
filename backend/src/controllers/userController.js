@@ -17,7 +17,7 @@ export async function updateMfaPolicy(req, res) {
 
   // Superadmin policy: superadmin must stay TOTP
   if (user.role === "superadmin") {
-    user.mfa = { required: true, method: "totp", totpSecretHash: user.mfa?.totpSecretHash || null, emailOtp: null };
+    user.mfa = { required: true, method: "totp", totpSecretHash: null, emailOtp: null };
   } else {
     user.mfa = {
       required,

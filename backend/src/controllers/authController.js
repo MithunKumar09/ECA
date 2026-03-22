@@ -4,13 +4,14 @@ import crypto from "crypto";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import { encryptTotpSecret, decryptTotpSecret } from "../utils/mfaCrypto.js";
 
 import { setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
 import User from "../models/User.js";
 import Invitation from "../models/Invitation.js";
-import { sendOtpEmail, sendInvitationEmail, sendPasswordResetEmail } from "../utils/email.js";
+import { sendOtpEmail, sendInvitationEmail, sendPasswordResetEmail, sendEmailChangeVerification, sendSuspiciousLoginAlert } from "../utils/email.js";
+import AuditLog from "../models/AuditLog.js";
+import RefreshToken from "../models/RefreshToken.js";
 import {
   signMfaTempToken,
   verifyMfaTempToken,
@@ -18,24 +19,7 @@ import {
 
 const hash = (v) => crypto.createHash("sha256").update(String(v)).digest("hex");
 
-// ===== Refresh token rotation (JTI) minimal model =====
-const RefreshTokenSchema = new mongoose.Schema(
-  {
-    userId: { type: mongoose.Schema.Types.ObjectId, index: true, required: true },
-    jti: { type: String, unique: true, required: true },
-    exp: { type: Date, required: true },
-    device: { type: String },
-    revokedAt: { type: Date },
-    replacedBy: { type: String },
-  },
-  { timestamps: true }
-);
-// M-2 fix: TTL index so MongoDB auto-deletes expired tokens.
-// expireAfterSeconds: 0 means documents are removed as soon as `exp` is in the past.
-RefreshTokenSchema.index({ exp: 1 }, { expireAfterSeconds: 0 });
-
-const RefreshToken =
-  mongoose.models.RefreshToken || mongoose.model("RefreshToken", RefreshTokenSchema);
+// RefreshToken model is now a standalone file — imported above.
 
 const ACCESS_TTL = process.env.ACCESS_TTL || "1h"; // Increased to 1 hour for better UX
 const REFRESH_TTL_SEC = parseInt(process.env.REFRESH_TTL_SEC || `${60 * 60 * 24 * 30}`, 10);
@@ -100,12 +84,47 @@ function getActiveRefreshCookie(req) {
     : req.cookies?.sr;
 }
 
-async function saveRefresh(userId, jti, exp, device) {
-  await RefreshToken.create({ userId, jti, exp, device });
+// Lightweight UA parser — no external dependency needed.
+// Extracts a readable browser + OS label from a User-Agent string.
+function parseUA(ua) {
+  const s = String(ua || "");
+  let browser = "Unknown";
+  let os      = "Unknown";
+
+  // Browser detection (order matters — Edge must come before Chrome)
+  if (/Edg\//i.test(s))            browser = "Edge";
+  else if (/OPR\//i.test(s))       browser = "Opera";
+  else if (/Chrome\//i.test(s))    browser = "Chrome";
+  else if (/Firefox\//i.test(s))   browser = "Firefox";
+  else if (/Safari\//i.test(s))    browser = "Safari";
+  else if (/MSIE|Trident/i.test(s)) browser = "IE";
+
+  // OS detection
+  if (/Windows NT/i.test(s))       os = "Windows";
+  else if (/Android/i.test(s))     os = "Android";
+  else if (/iPhone|iPad/i.test(s)) os = "iOS";
+  else if (/Mac OS X/i.test(s))    os = "macOS";
+  else if (/Linux/i.test(s))       os = "Linux";
+
+  return { browser, os, userAgent: s };
+}
+
+async function saveRefresh(userId, jti, exp, ua, ip) {
+  await RefreshToken.create({
+    userId,
+    jti,
+    exp,
+    device: ua,          // raw UA string kept in device for backward compat
+    ip:    ip || null,
+    lastUsedAt: new Date(),
+  });
 }
 
 async function revokeRefresh(jti, replacedBy) {
-  await RefreshToken.updateOne({ jti }, { $set: { revokedAt: new Date(), replacedBy } });
+  await RefreshToken.updateOne(
+    { jti },
+    { $set: { revokedAt: new Date(), replacedBy, isRevoked: true } }
+  );
 }
 
 async function findRefresh(jti) {
@@ -132,6 +151,7 @@ function mintTokens(user, device) {
     role,
     roles: role ? [role] : [],
     orgId,
+    jti,
   };
   const access = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: ACCESS_TTL });
   const refreshExp = expFromNowSec(REFRESH_TTL_SEC);
@@ -162,6 +182,9 @@ function normalizeRoleWhenVerified(user) {
 export async function login(req, res) {
   try {
     const { email, password, as } = req.body;
+    const ua  = req.get("User-Agent") || "unknown";
+    const ip  = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+
     const user = await User.findOne({ email }).select("+passwordHash");
     if (!user) return res.status(401).json({ ok: false, message: "Invalid credentials" });
 
@@ -175,6 +198,9 @@ export async function login(req, res) {
     if (user.status !== "active") {
       return res.status(403).json({ ok: false, message: "Account disabled" });
     }
+
+    // Suspicious login detection: run after credential verification for all paths
+    await detectSuspiciousLogin(user, ua, ip, req);
 
     if (user.mfa?.required) {
       const method = user.mfa.method || "otp";
@@ -202,9 +228,8 @@ export async function login(req, res) {
     if (normalizeRoleWhenVerified(user)) changed = true;
     if (changed) await user.save();
 
-    const device = req.get("User-Agent") || "unknown";
-    const { access, refresh, jti, refreshExp } = mintTokens(user, device);
-    await saveRefresh(user.id, jti, refreshExp, device);
+    const { access, refresh, jti, refreshExp } = mintTokens(user, ua);
+    await saveRefresh(user.id, jti, refreshExp, ua, ip);
     setAuthCookies(req, res, { accessToken: access, refreshToken: refresh });
     // Keep JSON tokens for compatibility (consider removing later)
     return res.json({ ok: true, user, tokens: { accessToken: access, refreshToken: refresh } });
@@ -287,9 +312,10 @@ if (changed) await user.save();
       return res.status(400).json({ ok: false, message: "Invalid method" });
     }
 
-    const device = req.get("User-Agent") || "unknown";
-    const { access, refresh, jti, refreshExp } = mintTokens(user, device);
-    await saveRefresh(user.id, jti, refreshExp, device);
+    const ua  = req.get("User-Agent") || "unknown";
+    const ip  = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+    const { access, refresh, jti, refreshExp } = mintTokens(user, ua);
+    await saveRefresh(user.id, jti, refreshExp, ua, ip);
     setAuthCookies(req, res, { accessToken: access, refreshToken: refresh });
     return res.json({ ok: true, user, tokens: { accessToken: access, refreshToken: refresh } });
   } catch (e) {
@@ -405,9 +431,10 @@ if (normalizeRoleWhenVerified(user)) changed = true;
 if (changed) await user.save();
 
 
-    const device = req.get("User-Agent") || "unknown";
-    const { access, refresh, jti, refreshExp } = mintTokens(user, device);
-    await saveRefresh(user.id, jti, refreshExp, device);
+    const ua  = req.get("User-Agent") || "unknown";
+    const ip  = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+    const { access, refresh, jti, refreshExp } = mintTokens(user, ua);
+    await saveRefresh(user.id, jti, refreshExp, ua, ip);
     setAuthCookies(req, res, { accessToken: access, refreshToken: refresh });
     return res.json({ ok: true, user, tokens: { accessToken: access, refreshToken: refresh } });
   } catch {
@@ -476,7 +503,7 @@ export async function acceptInvite(req, res) {
   const roleFinal = (inv.role === "student" && inv.orgId) ? "orguser" : inv.role;
 
   // --- Create or update the user with ORG MEMBERSHIP from the invite ---
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
 
   let user = await User.findOne({ email: inv.email });
   if (!user) {
@@ -674,6 +701,9 @@ export async function refresh(req, res) {
     }
 
     const device = req.get("User-Agent") || dbTok.device || "unknown";
+    // Update lastUsedAt on the token being consumed before rotating
+    await RefreshToken.updateOne({ jti: oldJti }, { $set: { lastUsedAt: new Date() } });
+
     // Use full doc (not lean) — but mintTokens is robust either way
     const user = await User.findById(userId);
     if (!user) {
@@ -683,7 +713,7 @@ export async function refresh(req, res) {
 
     const { access, refresh, jti, refreshExp } = mintTokens(user, device);
     await revokeRefresh(oldJti, jti);
-    await saveRefresh(userId, jti, refreshExp, device);
+    await saveRefresh(userId, jti, refreshExp, device, ip);
 
     setAuthCookies(req, res, { accessToken: access, refreshToken: refresh });
 
@@ -750,7 +780,7 @@ export async function signupStudent(req, res) {
   const existing = await User.findOne({ email: String(email).toLowerCase() });
   if (existing) return res.status(409).json({ message: 'Email already in use' });
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
   await User.create({
     name: name || null,
     email: String(email).toLowerCase(),
@@ -809,7 +839,7 @@ export async function resetPassword(req, res) {
     }
 
     // Hash new password
-    const passwordHash = await bcrypt.hash(resetPassword, 10);
+    const passwordHash = await bcrypt.hash(resetPassword, 12);
 
     // Update user with new password and clear reset token
     user.passwordHash = passwordHash;
@@ -934,7 +964,379 @@ export async function forgotPassword(req, res) {
       stack: error?.stack?.split('\n')[0], // First line of stack trace
       ms: Date.now() - started
     });
-    
+
     return res.status(500).json({ ok: false, message: 'Something went wrong. Please try again later.' });
   }
+}
+
+// ============================================================
+// SETTINGS CONTROLLERS
+// ============================================================
+
+// Helper: extract client IP for audit logging
+function clientIp(req) {
+  return String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+}
+
+// Helper: write an audit log entry (fire-and-forget — never blocks response)
+function writeAudit(userId, action, req, meta = {}) {
+  AuditLog.create({ userId, action, ip: clientIp(req), ua: req.get("User-Agent") || "", meta })
+    .catch((e) => console.error("[audit] write failed:", e?.message));
+}
+
+// Helper: generate N random backup codes, return { plain[], hashed[] }
+function generateBackupCodes(n = 8) {
+  const plain = Array.from({ length: n }, () =>
+    crypto.randomBytes(5).toString("hex").toUpperCase().match(/.{1,5}/g).join("-")
+  );
+  const hashed = plain.map((c) => hash(c));
+  return { plain, hashed };
+}
+
+// ------------------------------------------------------------------
+// PATCH /auth/me/password
+// Requires: requireAuth, requireRecentAuth (verifies currentPassword)
+// Body:     { currentPassword, newPassword }
+// ------------------------------------------------------------------
+export async function changePassword(req, res) {
+  const { newPassword } = req.body || {};
+
+  if (!newPassword || typeof newPassword !== "string" || newPassword.length < 8) {
+    return res.status(400).json({ ok: false, message: "New password must be at least 8 characters" });
+  }
+
+  // req.authenticatedUser is attached by requireRecentAuth (already DB-fetched with passwordHash)
+  const user = req.authenticatedUser;
+
+  const same = await bcrypt.compare(newPassword, user.passwordHash || "");
+  if (same) {
+    return res.status(400).json({ ok: false, message: "New password must differ from current password" });
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, 12);
+  await user.save();
+
+  // Revoke ALL refresh tokens so other sessions are invalidated
+  await RefreshToken.deleteMany({ userId: user._id });
+
+  writeAudit(user._id, "PASSWORD_CHANGE", req);
+
+  return res.json({ ok: true, message: "Password updated. Other sessions have been signed out." });
+}
+
+// ------------------------------------------------------------------
+// POST /auth/me/email/request
+// Requires: requireAuth, requireRecentAuth (verifies currentPassword)
+// Body:     { currentPassword, newEmail }
+// ------------------------------------------------------------------
+export async function requestEmailChange(req, res) {
+  const { newEmail } = req.body || {};
+
+  if (!newEmail || typeof newEmail !== "string") {
+    return res.status(400).json({ ok: false, message: "newEmail is required" });
+  }
+  const normalized = newEmail.toLowerCase().trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return res.status(400).json({ ok: false, message: "Invalid email format" });
+  }
+
+  const user = req.authenticatedUser;
+
+  if (normalized === user.email) {
+    return res.status(400).json({ ok: false, message: "New email must differ from current email" });
+  }
+
+  const conflict = await User.findOne({ email: normalized });
+  if (conflict) return res.status(409).json({ ok: false, message: "Email already in use" });
+
+  const token = crypto.randomBytes(32).toString("hex");
+  user.emailChangePending = normalized;
+  user.emailChangeToken   = hash(token);
+  user.emailChangeExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await user.save();
+
+  const verifyLink = `${(process.env.PUBLIC_APP_URL || "").split(",")[0].trim()}/verify-email-change?token=${token}`;
+
+  try {
+    await sendEmailChangeVerification(normalized, verifyLink);
+  } catch (e) {
+    console.error("[settings] email change verification send failed:", e?.message);
+    console.log(`[DEV] Email change verify link for ${normalized}: ${verifyLink}`);
+  }
+
+  writeAudit(user._id, "EMAIL_CHANGE_REQUEST", req, { newEmail: normalized });
+
+  return res.json({ ok: true, message: "Verification email sent to your new address. It expires in 1 hour." });
+}
+
+// ------------------------------------------------------------------
+// GET /auth/me/email/verify?token=xxx   (public — token-gated)
+// ------------------------------------------------------------------
+export async function verifyEmailChange(req, res) {
+  const { token } = req.query || {};
+  if (!token || typeof token !== "string") {
+    return res.status(400).json({ ok: false, message: "Token is required" });
+  }
+
+  const tokenHash = hash(token.trim());
+  const user = await User.findOne({
+    emailChangeToken: tokenHash,
+    emailChangeExpires: { $gt: new Date() },
+  }).select("+emailChangePending +emailChangeToken +emailChangeExpires");
+
+  if (!user) return res.status(400).json({ ok: false, message: "Invalid or expired token" });
+
+  const newEmail = user.emailChangePending;
+
+  // Race-condition guard: re-check for duplicate before committing
+  const conflict = await User.findOne({ email: newEmail, _id: { $ne: user._id } });
+  if (conflict) {
+    user.emailChangePending = null;
+    user.emailChangeToken   = null;
+    user.emailChangeExpires = null;
+    await user.save();
+    return res.status(409).json({ ok: false, message: "Email is already in use by another account" });
+  }
+
+  user.email              = newEmail;
+  user.emailChangePending = null;
+  user.emailChangeToken   = null;
+  user.emailChangeExpires = null;
+  await user.save();
+
+  writeAudit(user._id, "EMAIL_CHANGE_VERIFY", req, { newEmail });
+
+  return res.json({ ok: true, message: "Email address updated successfully" });
+}
+
+// ------------------------------------------------------------------
+// GET /auth/me/2fa/setup
+// Requires: requireAuth
+// Generates a fresh TOTP secret and returns QR code URL
+// ------------------------------------------------------------------
+export async function selfTotpSetup(req, res) {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ ok: false, message: "User not found" });
+
+  const secret = speakeasy.generateSecret({
+    length: 20,
+    name: `${process.env.TOTP_ISSUER || "ECA"}:${user.email}`,
+  });
+  user.mfa.totpSecretEnc  = encryptTotpSecret(secret.base32);
+  user.mfa.totpSecretHash = null; // clear legacy
+  await user.save();
+
+  const otpauth_url = speakeasy.otpauthURL({
+    secret: secret.base32,
+    encoding: "base32",
+    label: user.email,
+    issuer: process.env.TOTP_ISSUER || "ECA",
+    digits: 6,
+    period: 30,
+  });
+  const qrDataUrl = await QRCode.toDataURL(otpauth_url);
+
+  return res.json({ ok: true, qrDataUrl, otpauth_url });
+}
+
+// ------------------------------------------------------------------
+// POST /auth/me/2fa/enable
+// Requires: requireAuth
+// Body: { code }  — 6-digit TOTP code confirming enrollment
+// Returns backup codes ONCE on success
+// ------------------------------------------------------------------
+export async function selfTotpEnable(req, res) {
+  const { code } = req.body || {};
+  if (!code || !/^\d{6}$/.test(String(code))) {
+    return res.status(400).json({ ok: false, message: "A valid 6-digit code is required" });
+  }
+
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ ok: false, message: "User not found" });
+
+  const enc = user.mfa?.totpSecretEnc;
+  const hasValidEnc = !!(enc?.iv && enc?.ct && enc?.tag);
+  if (!hasValidEnc) {
+    return res.status(400).json({ ok: false, message: "No pending TOTP setup. Call /2fa/setup first." });
+  }
+
+  let base32Secret;
+  try {
+    base32Secret = decryptTotpSecret(enc);
+  } catch {
+    return res.status(400).json({ ok: false, message: "Stored secret is corrupted. Call /2fa/setup again." });
+  }
+
+  const result = speakeasy.totp.verifyDelta({
+    secret: base32Secret,
+    encoding: "base32",
+    token: String(code),
+    digits: 6,
+    step: 30,
+    window: 1,
+  });
+  if (!result) return res.status(400).json({ ok: false, message: "Invalid code" });
+
+  // Generate backup codes — returned once, stored as hashes
+  const { plain: backupPlain, hashed: backupHashed } = generateBackupCodes(8);
+
+  user.mfa.required = true;
+  user.mfa.method   = "totp";
+  user.backupCodes  = backupHashed;
+  await user.save();
+
+  writeAudit(user._id, "2FA_ENABLE", req, { method: "totp" });
+  writeAudit(user._id, "BACKUP_CODES_GENERATED", req);
+
+  return res.json({
+    ok: true,
+    message: "2FA enabled",
+    backupCodes: backupPlain, // returned ONCE — user must save these
+  });
+}
+
+// ------------------------------------------------------------------
+// POST /auth/me/2fa/disable
+// Requires: requireAuth, requireRecentAuth (verifies currentPassword)
+// ------------------------------------------------------------------
+export async function selfTotpDisable(req, res) {
+  const user = req.authenticatedUser;
+
+  if (user.role === "superadmin") {
+    return res.status(403).json({ ok: false, message: "Superadmin must keep 2FA enabled at all times" });
+  }
+
+  user.mfa.required       = false;
+  user.mfa.method         = null;
+  user.mfa.totpSecretHash = null;
+  user.mfa.totpSecretEnc  = { iv: null, ct: null, tag: null };
+  user.mfa.emailOtp       = null;
+  user.backupCodes        = [];
+  await user.save();
+
+  writeAudit(user._id, "2FA_DISABLE", req);
+
+  return res.json({ ok: true, message: "2FA disabled" });
+}
+
+// ============================================================
+// SESSION MONITORING
+// ============================================================
+
+// ------------------------------------------------------------------
+// detectSuspiciousLogin — runs after successful credential check.
+// Flags logins from a User-Agent or IP not seen in any active session.
+// Fire-and-forget: never blocks the login response.
+// ------------------------------------------------------------------
+async function detectSuspiciousLogin(user, ua, ip, req) {
+  try {
+    const existing = await RefreshToken.findOne({
+      userId: user._id,
+      revokedAt: null,
+      $or: [{ device: ua }, { ip }],
+    });
+
+    if (!existing) {
+      // New device AND new IP — write audit + optional email alert
+      writeAudit(user._id, "SUSPICIOUS_LOGIN", req, {
+        ua,
+        ip,
+        reason: "Unrecognized device and IP",
+      });
+
+      // Best-effort email alert — never fail login if this throws
+      sendSuspiciousLoginAlert(user.email, { ua, ip }).catch((e) =>
+        console.error("[security] suspicious login alert failed:", e?.message)
+      );
+    }
+  } catch (e) {
+    console.error("[security] suspicious login check failed:", e?.message);
+  }
+}
+
+// ------------------------------------------------------------------
+// GET /auth/me/sessions
+// Returns all active (non-revoked) sessions for the authenticated user.
+// Marks the current session by matching jti from the access token.
+// ------------------------------------------------------------------
+export async function listSessions(req, res) {
+  const userId = req.user?._id;
+  const currentJti = req.user?.jti ?? null;
+
+  const sessions = await RefreshToken.find({
+    userId,
+    revokedAt: null,
+    exp: { $gt: new Date() },
+  })
+    .sort({ lastUsedAt: -1 })
+    .lean();
+
+  const result = sessions.map((s) => {
+    const parsed = parseUA(s.device || "");
+    return {
+      id:          String(s._id),
+      device:      parsed,
+      ip:          s.ip || null,
+      lastUsedAt:  s.lastUsedAt ?? s.createdAt,
+      current:     currentJti ? s.jti === currentJti : false,
+    };
+  });
+
+  return res.json({ ok: true, sessions: result });
+}
+
+// ------------------------------------------------------------------
+// DELETE /auth/me/sessions/:id
+// Revokes a single session by its document _id.
+// Cannot revoke the current session (use /logout for that).
+// ------------------------------------------------------------------
+export async function revokeSession(req, res) {
+  const userId = req.user?._id;
+  const { id }  = req.params;
+
+  const session = await RefreshToken.findOne({ _id: id, userId });
+  if (!session) return res.status(404).json({ ok: false, message: "Session not found" });
+
+  if (session.revokedAt) {
+    return res.status(400).json({ ok: false, message: "Session already revoked" });
+  }
+
+  await RefreshToken.updateOne(
+    { _id: id },
+    { $set: { revokedAt: new Date(), isRevoked: true } }
+  );
+
+  writeAudit(userId, "SESSION_REVOKED", req, { sessionId: String(id) });
+
+  return res.json({ ok: true, message: "Session revoked" });
+}
+
+// ------------------------------------------------------------------
+// POST /auth/me/sessions/revoke-others
+// Revokes all sessions except the current one (identified by jti).
+// ------------------------------------------------------------------
+export async function revokeOtherSessions(req, res) {
+  const userId     = req.user?._id;
+  const currentJti = req.user?.jti ?? null;
+
+  if (!currentJti) {
+    return res.status(400).json({ ok: false, message: "Cannot identify current session" });
+  }
+
+  const result = await RefreshToken.updateMany(
+    {
+      userId,
+      jti: { $ne: currentJti },
+      revokedAt: null,
+    },
+    { $set: { revokedAt: new Date(), isRevoked: true } }
+  );
+
+  writeAudit(userId, "SESSION_REVOKED_ALL", req, { count: result.modifiedCount });
+
+  return res.json({
+    ok: true,
+    message: `${result.modifiedCount} other session(s) revoked`,
+    count: result.modifiedCount,
+  });
 }

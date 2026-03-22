@@ -89,3 +89,72 @@ export function precheckEmail(email: string) {
 export function signupStudent(payload: { name: string; email: string; password: string }) {
   return api.post('auth/signup-student', payload).then(r => r.data as { ok: true });
 }
+
+// ── Settings API ──────────────────────────────────────────────
+
+export async function changePassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  const { data } = await api.patch('auth/me/password', payload);
+  return data;
+}
+
+export async function requestEmailChange(payload: {
+  currentPassword: string;
+  newEmail: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  const { data } = await api.post('auth/me/email/request', payload);
+  return data;
+}
+
+export async function setupTotp(): Promise<{
+  ok: boolean;
+  qrDataUrl?: string;
+  otpauth_url?: string;
+}> {
+  const { data } = await api.get('auth/me/2fa/setup');
+  return data;
+}
+
+export async function enableTotp(code: string): Promise<{
+  ok: boolean;
+  message?: string;
+  backupCodes?: string[];
+}> {
+  const { data } = await api.post('auth/me/2fa/enable', { code });
+  return data;
+}
+
+export async function disableTotp(currentPassword: string): Promise<{
+  ok: boolean;
+  message?: string;
+}> {
+  const { data } = await api.post('auth/me/2fa/disable', { currentPassword });
+  return data;
+}
+
+// ── Session management API ─────────────────────────────────────
+
+export type Session = {
+  id: string;
+  device: { browser: string; os: string; userAgent: string };
+  ip: string | null;
+  lastUsedAt: string;
+  current: boolean;
+};
+
+export async function listSessions(): Promise<{ ok: boolean; sessions: Session[] }> {
+  const { data } = await api.get('auth/me/sessions');
+  return data;
+}
+
+export async function revokeSession(id: string): Promise<{ ok: boolean; message?: string }> {
+  const { data } = await api.delete(`auth/me/sessions/${id}`);
+  return data;
+}
+
+export async function revokeOtherSessions(): Promise<{ ok: boolean; message?: string; count?: number }> {
+  const { data } = await api.post('auth/me/sessions/revoke-others');
+  return data;
+}

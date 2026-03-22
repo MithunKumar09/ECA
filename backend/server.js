@@ -159,7 +159,36 @@ app.use("/api/auth/forgot-password", forgotLimiter);
 app.use("/api/auth/precheck",        forgotLimiter);
 app.use("/api/auth/signup",          signupLimiter);
 app.use("/api/auth/signup-student",  signupLimiter);
-// Add CSP with nonces when you’re ready
+// Settings endpoints: 10 attempts per 15 min, keyed by user ID (from JWT sub)
+// Falls back to IP when sub is not available (e.g. unauthenticated email-verify)
+const settingsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use authenticated user ID when available; fallback to IP
+    const sub = req.user?.sub || req.user?._id;
+    return sub ? `user:${sub}` : String(req.headers["x-forwarded-for"] || req.ip || "anon");
+  },
+  message: { ok: false, message: "Too many requests, please try again later." },
+});
+app.use("/api/auth/me/password",      settingsLimiter);
+app.use("/api/auth/me/email/request", settingsLimiter);
+app.use("/api/auth/me/2fa",           settingsLimiter);
+// Session endpoints: 30 req/15 min (reads are more permissive than writes)
+const sessionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const sub = req.user?.sub || req.user?._id;
+    return sub ? `user:${sub}` : String(req.headers["x-forwarded-for"] || req.ip || "anon");
+  },
+  message: { ok: false, message: "Too many requests, please try again later." },
+});
+app.use("/api/auth/me/sessions", sessionLimiter);
 
 // HSTS (HTTPS-only)
 app.use((req, res, next) => {
@@ -191,6 +220,7 @@ const CSRF_EXEMPT = [
   "/api/checkout/razorpay/webhook",
   "/api/public/contact",
   "/public/contact",
+  "/api/auth/me/email/verify",
 ];
 
 // Helper: detect "effectively https" when sitting behind a proxy

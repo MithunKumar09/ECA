@@ -294,7 +294,7 @@ export async function patch(req, res) {
     user.mfa = {
       required: !!mfa.required,
       method: mfa.required ? (mfa.method === "totp" ? "totp" : "otp") : null,
-      totpSecretHash: user.mfa?.totpSecretHash || null,
+      totpSecretHash: null,
       totpSecretEnc: user.mfa?.totpSecretEnc || { iv: null, ct: null, tag: null },
       emailOtp: null,
     };

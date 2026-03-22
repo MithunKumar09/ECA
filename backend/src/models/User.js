@@ -51,6 +51,12 @@ const userSchema = new mongoose.Schema({
   // Password reset fields — C-1 fix: select:false prevents token from appearing in API responses
   passwordResetToken: { type: String, default: null, select: false },
   passwordResetExpires: { type: Date, default: null, select: false },
+  // Email change fields — pending new email awaiting verification
+  emailChangePending: { type: String, default: null, select: false },
+  emailChangeToken:   { type: String, default: null, select: false },
+  emailChangeExpires: { type: Date,   default: null, select: false },
+  // 2FA backup codes — stored as SHA-256 hashes
+  backupCodes: { type: [String], default: [], select: false },
 }, { timestamps: true });
 
 // C-1 fix: schema-level toJSON transform as a final safety net.
@@ -61,6 +67,10 @@ userSchema.set("toJSON", {
     delete ret.passwordHash;
     delete ret.passwordResetToken;
     delete ret.passwordResetExpires;
+    delete ret.emailChangePending;
+    delete ret.emailChangeToken;
+    delete ret.emailChangeExpires;
+    delete ret.backupCodes;
     return ret;
   },
 });
@@ -68,4 +78,7 @@ userSchema.set("toJSON", {
 userSchema.index({ updatedAt: -1 });
 // PERF: resolveManagerId() query — User.findOne({orgId,role,status}) was a full collection scan
 userSchema.index({ orgId: 1, role: 1, status: 1 }, { name: "orgId_1_role_1_status_1" });
+// Sparse indexes for token lookup — only index documents where the field exists
+userSchema.index({ passwordResetToken: 1 }, { sparse: true, name: "passwordResetToken_sparse" });
+userSchema.index({ emailChangeToken: 1 }, { sparse: true, name: "emailChangeToken_sparse" });
 export default mongoose.model("User", userSchema);

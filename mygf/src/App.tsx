@@ -77,6 +77,7 @@ import VECourses from "./admin/pages/teacher/Courses";
 import VEReports from "./admin/pages/teacher/Reports";
 import VENotes from "./admin/pages/teacher/Notes";
 import VEStudents from "./admin/pages/teacher/Students";
+import VESettings from "./admin/pages/teacher/Settings";
 
 // ---------- Centralized guards ----------
 import Shell from "./shell";
@@ -259,6 +260,7 @@ export default function App() {
         <Route path="payments" element={<VEPayments />} />
         <Route path="notes" element={<VENotes />} />
         <Route path="students" element={<VEStudents />} />
+        <Route path="settings" element={<VESettings />} />
       </Route>
 
       {/* Fallback - redirect to static HTML home */}

@@ -592,6 +592,91 @@ This link expires in 1 hour. If you didn't request this, you can ignore this ema
   });
 }
 
+export async function sendEmailChangeVerification(to, verifyLink) {
+  const subject = `Verify your new email address — ${BRAND}`;
+  const preheader = "Confirm your new email address. Link expires in 1 hour.";
+
+  const safeLink = String(verifyLink || "");
+  const contentHtml = `
+    <p>Hello,</p>
+    <p>You requested to change the email address on your <b>${escapeHtml(BRAND)}</b> account.</p>
+    <p>Please verify your new email address by clicking the button below:</p>
+    <p style="margin:18px 0"><a class="btn" href="${safeLink}">Verify New Email</a></p>
+    <p class="muted">If the button doesn't work, copy and paste this URL into your browser:</p>
+    <p class="muted" style="word-break:break-all;">${escapeHtml(safeLink)}</p>
+    <p class="muted">This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your current address will remain unchanged.</p>
+  `;
+  const html = renderTemplate({ title: "Verify your new email", preheader, contentHtml });
+
+  const text = `Hello,
+
+You requested to change the email address on your ${BRAND} account.
+
+Click this link to verify your new email address:
+${safeLink}
+
+This link expires in 1 hour. If you didn't request this, you can ignore this email.`;
+
+  const messageId = crypto.randomUUID();
+
+  await sendEmailWithRetry({
+    from: getFromEmail(),
+    to,
+    subject,
+    text,
+    html,
+    headers: {
+      ...baseHeaders(),
+      "Message-ID": `<email-change-${messageId}@${APP_HOST}>`,
+    },
+  });
+}
+
+export async function sendSuspiciousLoginAlert(to, { ua, ip } = {}) {
+  const subject = `Security alert: new sign-in to your ${BRAND} account`;
+  const preheader = "We detected a sign-in from an unrecognized device or location.";
+
+  const safeUa = escapeHtml(ua || "Unknown device");
+  const safeIp = escapeHtml(ip || "Unknown location");
+  const contentHtml = `
+    <p>Hello,</p>
+    <p>We detected a sign-in to your <b>${escapeHtml(BRAND)}</b> account from a device or location we don't recognize.</p>
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;">
+      <tr><td style="padding:4px 8px 4px 0;color:#64748b;white-space:nowrap;">IP address</td><td style="padding:4px 0;font-weight:500;">${safeIp}</td></tr>
+      <tr><td style="padding:4px 8px 4px 0;color:#64748b;white-space:nowrap;">Device</td><td style="padding:4px 0;font-weight:500;word-break:break-all;">${safeUa}</td></tr>
+    </table>
+    <p>If this was you, no action is needed.</p>
+    <p>If you don't recognise this activity, secure your account immediately: change your password and enable two-factor authentication.</p>
+    <p class="muted">This alert was sent because a login from an unrecognised device or IP address was detected on your account.</p>
+  `;
+  const html = renderTemplate({ title: "New sign-in detected", preheader, contentHtml });
+
+  const text = `Hello,
+
+We detected a sign-in to your ${BRAND} account from an unrecognized device or location.
+
+IP address: ${ip || "Unknown"}
+Device:     ${ua || "Unknown"}
+
+If this was you, no action is needed.
+
+If you don't recognise this activity, change your password immediately and enable two-factor authentication.`;
+
+  const messageId = crypto.randomUUID();
+
+  await sendEmailWithRetry({
+    from: getFromEmail(),
+    to,
+    subject,
+    text,
+    html,
+    headers: {
+      ...baseHeaders(),
+      "Message-ID": `<security-alert-${messageId}@${APP_HOST}>`,
+    },
+  });
+}
+
 export async function sendContactNotification(to, payload) {
   const {
     name,

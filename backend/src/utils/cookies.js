@@ -81,7 +81,7 @@ if (sameSite === "none" && !secure) {
   // Derive access-cookie maxAge from the same TTL used to sign the JWT.
   const accessMaxAge = parseTtlMs(process.env.ACCESS_TTL || "1h");
 
-  res.cookie(sessionName, accessToken, { ...base, maxAge: accessMaxAge });
+  res.cookie(sessionName, accessToken, { ...base, maxAge: accessMaxAge, partitioned: true });
 
   // PHASE 5: config-driven refresh TTL via REFRESH_TTL env var (default 30d).
   // Keeps the cookie lifetime consistent with the signed JWT TTL.
