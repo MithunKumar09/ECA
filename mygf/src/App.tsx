@@ -35,7 +35,7 @@ import SAStudents from "./admin/pages/superadmin/Students";
 import SACourses from "./admin/pages/superadmin/Courses";
 import SAPayments from "./admin/pages/superadmin/Payments";
 import SASubscriptions from "./admin/pages/superadmin/Subscriptions";
-import SAAnalytics from "./admin/pages/superadmin/Analytics";
+// import SAAnalytics from "./admin/pages/superadmin/Analytics";
 import SACMS from "./admin/pages/superadmin/CMS";
 import SAAuditLogs from "./admin/pages/superadmin/AuditLogs";
 import SACompliance from "./admin/pages/superadmin/Compliance";
@@ -198,7 +198,7 @@ export default function App() {
         <Route path="courses" element={<SACourses />} />
         <Route path="payments" element={<SAPayments />} />
         <Route path="subscriptions" element={<SASubscriptions />} />
-        <Route path="analytics" element={<SAAnalytics />} />
+        {/* <Route path="analytics" element={<SAAnalytics />} /> */}
         <Route path="cms" element={<SACMS />} />
         <Route path="audit" element={<SAAuditLogs />} />
         <Route path="compliance" element={<SACompliance />} />

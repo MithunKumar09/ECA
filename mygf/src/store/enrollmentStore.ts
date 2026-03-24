@@ -75,7 +75,16 @@ export const useEnrollmentStore = create<EnrollmentStore>((set, get) => ({
     set({ loading: true });
     try {
       const res = await api.get("/student/enrollments/active", { withCredentials: true });
-      const items: any[] = Array.isArray(res?.data?.items) ? res.data.items : [];
+
+      // Handle both { items: [] } and flat [] response shapes
+      const raw = res?.data;
+      const items: any[] =
+        Array.isArray(raw?.items)
+          ? raw.items
+          : Array.isArray(raw)
+          ? raw
+          : [];
+
       const ids = items
         .filter((e) =>
           e.premium === true ||
@@ -85,8 +94,18 @@ export const useEnrollmentStore = create<EnrollmentStore>((set, get) => ({
           e.access === "premium" ||
           !!e.paidAt
         )
-        .map((e) => String(e.courseId || e.course?.id || ""))
+        // Robust ID extraction: camelCase + snake_case + nested + direct
+        .map((e) =>
+          String(
+            e.courseId ??
+            e.course_id ??
+            e.course?.id ??
+            e.id ??
+            ""
+          )
+        )
         .filter(Boolean);
+
       // Merge — never replace (preserves optimistic IDs)
       get().setFromServer(ids);
     } catch {

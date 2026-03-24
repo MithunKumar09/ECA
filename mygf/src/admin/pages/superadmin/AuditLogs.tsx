@@ -17,7 +17,12 @@ export default function SAAuditLogs(){
   const [filters, setFilters] = useState<AuditFilters>({ action:'all', resource:'all', status:'all' })
   const [view, setView] = useState<AuditLog|null>(null)
 
-  const orgsQ = useQuery({ queryKey:['sa-orgs:lookup'], queryFn: ()=> listOrgs({}) })
+  const orgsQ = useQuery({
+    queryKey: ['sa-orgs:lookup'],
+    queryFn: () => listOrgs({}),
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  })
   const query = useQuery({ queryKey:['audit', filters], queryFn: ()=> AuditDB.list(filters) })
 
   const clearMut = useMutation({ mutationFn: ()=> AuditDB.clear(), onSuccess: ()=> qc.invalidateQueries({ queryKey:['audit'] }) })
@@ -33,7 +38,7 @@ export default function SAAuditLogs(){
   })
 
   const rows = query.data ?? []
-  const orgs = orgsQ.data ?? []
+  const orgs = orgsQ.data?.items ?? []
 
   const countBy = useMemo(()=>{
     const c: Record<string, number> = {}

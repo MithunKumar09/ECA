@@ -154,7 +154,9 @@ export default function CourseCard({
       <div className="relative z-10 p-4">
         {/* track shows slug (no fallback) */}
         {course.track && <p className="text-xs uppercase tracking-wider text-slate-500">{course.track}</p>}
-        <h3 className="mt-1 line-clamp-2 font-semibold text-slate-900">{course.title}</h3>
+        <h3 className="mt-1 line-clamp-2 font-semibold text-slate-900">
+          {course.title || (course as { name?: string }).name || "Untitled Course"}
+        </h3>
 
         {/* Price row (hidden when premium/free) */}
         {!(isPremium || isFree) && hasPrice && salePaise != null && (

@@ -8,7 +8,15 @@ import App from "./App";
 import "./index.css";
 import { GOOGLE_CLIENT_ID } from "./components/constants";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 30 * 1000,
+    },
+  },
+});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

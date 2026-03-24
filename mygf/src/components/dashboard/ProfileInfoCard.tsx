@@ -1,7 +1,10 @@
 // mygf/src/components/dashboard/ProfileInfoCard.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Card from "./ui/Card";
-import { api } from "../../api/client";
+import { useEnrollmentStore } from "../../store/enrollmentStore";
+import { useAuth } from "../../auth/store";
+import { fetchCoursesPage } from "../pages/tracks/api";
+import type { Course } from "../pages/tracks/types";
 
 type Props = {
   initials: string;
@@ -10,16 +13,8 @@ type Props = {
   statusBadges: { text: string; bg: string; textColor: string }[];
   dob: string;
   registrationDate: string;
-  paymentStatus: "Paid" | "Unpaid"; // kept for compatibility, not displayed anymore
+  paymentStatus: "Paid" | "Unpaid"; // kept for compatibility, not displayed
   accountStatus: "Active" | "Suspended";
-};
-
-type EnrolledCourse = {
-  courseId: string;
-  orgId?: string;
-  title: string;
-  slug?: string | null;
-  enrolledAt?: string;
 };
 
 export default function ProfileInfoCard({
@@ -29,44 +24,56 @@ export default function ProfileInfoCard({
   statusBadges,
   dob,
   registrationDate,
-  // paymentStatus,  // not used (replaced by Courses Enrolled)
   accountStatus,
 }: Props) {
-  // Enrollment UI state
-  const [courses, setCourses] = useState<EnrolledCourse[] | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // ── Step 2: premiumIds from global store (no duplicate fetch) ──────────────
+  const premiumIds = useEnrollmentStore((s) => s.premiumIds);
 
-  // Prefetch once so we know whether to show the arrow
+  // ── Step 3: course catalog — same source as CourseProgressList ─────────────
+  const { user } = useAuth();
+  const orgId: string | null = (user as { orgId?: string | null } | null)?.orgId ?? null;
+
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
   useEffect(() => {
-    let done = false;
+    let cancelled = false;
+    setCoursesLoading(true);
     (async () => {
       try {
-        const r = await api.get("/student/enrollments/active", { withCredentials: true });
-        if (!done) setCourses(Array.isArray(r?.data?.items) ? r.data.items : []);
+        const { items } = await fetchCoursesPage({
+          audience: orgId ? "org" : "public",
+          orgId: orgId ?? undefined,
+          limit: 24,
+        });
+        if (!cancelled) setAllCourses(items);
       } catch {
-        if (!done) setCourses([]);
+        // silently ignore — list stays empty
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
       }
     })();
-    return () => { done = true; };
-  }, []);
+    return () => { cancelled = true; };
+  }, [orgId]);
 
-  const hasCourses = (courses?.length ?? 0) > 0;
+  // ── Step 4: filter catalog by premiumIds ───────────────────────────────────
+  // Check both .id and ._id — MongoDB may expose either depending on the endpoint
+  const enrolledCourses = useMemo(
+    () =>
+      allCourses.filter(
+        (c) =>
+          premiumIds.has(String(c.id)) ||
+          premiumIds.has(String((c as { _id?: string })._id ?? ""))
+      ),
+    [allCourses, premiumIds]
+  );
+
+  const hasCourses = enrolledCourses.length > 0;
   const subtitle = hasCourses ? "watch it now" : "enroll now";
 
-  async function toggleExpand() {
+  function toggleExpand() {
     if (!hasCourses) return;
-    if (!expanded && courses === null) {
-      setLoading(true);
-      try {
-        const r = await api.get("/student/enrollments/active", { withCredentials: true });
-        setCourses(Array.isArray(r?.data?.items) ? r.data.items : []);
-      } catch {
-        setCourses([]);
-      } finally {
-        setLoading(false);
-      }
-    }
     setExpanded((e) => !e);
   }
 
@@ -98,7 +105,7 @@ export default function ProfileInfoCard({
         </div>
       </div>
 
-      {/* Details grid (kept intact, minus the old Payment Status) */}
+      {/* Details grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Detail
           iconBg="bg-blue-100"
@@ -121,7 +128,7 @@ export default function ProfileInfoCard({
         />
       </div>
 
-      {/* New: Courses Enrolled (replaces Payment Status UI) */}
+      {/* Courses Enrolled */}
       <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50/60 backdrop-blur p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -129,7 +136,6 @@ export default function ProfileInfoCard({
             <div className="text-xs text-blue-700">{subtitle}</div>
           </div>
 
-          {/* Advanced double arrow – only if there are courses */}
           {hasCourses && (
             <button
               onClick={toggleExpand}
@@ -152,30 +158,34 @@ export default function ProfileInfoCard({
           }`}
         >
           <div className="grid gap-3">
-            {loading && (
+            {/* Skeleton while catalog is loading */}
+            {coursesLoading && (
               <div className="rounded-xl border border-blue-200 bg-white/60 backdrop-blur-sm p-4 animate-pulse">
                 <div className="h-4 w-1/3 bg-blue-200 rounded mb-2" />
                 <div className="h-3 w-1/4 bg-blue-100 rounded" />
               </div>
             )}
 
-            {!loading && hasCourses &&
-              courses!.map((c) => {
-                const href = c.slug ? `/courses/${c.slug}` : `/courses/${c.courseId}`;
+            {/* Step 5: render enrolled courses from catalog */}
+            {!coursesLoading &&
+              enrolledCourses.map((course) => {
+                const href = `/course/${course.id}`;
                 return (
                   <a
-                    key={String(c.courseId)}
+                    key={String(course.id)}
                     href={href}
                     className="group block rounded-xl border border-blue-200 bg-white/70 backdrop-blur-sm px-4 py-3 shadow-sm hover:shadow transition"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate font-medium text-slate-800 group-hover:text-blue-700">
-                          {c.title || "Course"}
+                          {course.title ||
+                            (course as { name?: string }).name ||
+                            "Untitled Course"}
                         </div>
-                        {c.enrolledAt && (
-                          <div className="text-xs text-slate-500">
-                            Enrolled on {new Date(c.enrolledAt).toLocaleDateString()}
+                        {course.track && (
+                          <div className="text-xs text-slate-500 uppercase tracking-wide">
+                            {course.track}
                           </div>
                         )}
                       </div>
@@ -187,10 +197,10 @@ export default function ProfileInfoCard({
           </div>
         </div>
 
-        {/* No courses → no arrow, simple note */}
-        {!hasCourses && (
+        {/* No courses → simple note */}
+        {!hasCourses && !coursesLoading && (
           <div className="mt-3 text-xs text-slate-600">
-            You don’t have any active courses yet.
+            You don't have any active courses yet.
           </div>
         )}
       </div>

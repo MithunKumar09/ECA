@@ -8,7 +8,7 @@ export type Role = "superadmin" | "admin" | "teacher" | "student" | "orgadmin" |
 export type MenuItem = {
   label: string;
   to: string; // absolute route path
-  icon?: React.ComponentType<{ className?: string }> | any;
+  icon?: React.ComponentType<{ className?: string }>;
   exact?: boolean;
 };
 
@@ -48,7 +48,7 @@ export const MENUS: RoleMenuMap = {
     {
       heading: "Insights",
       items: [
-        { label: "Analytics", to: `${SA}/analytics`, icon: BarChart },
+        // { label: "Analytics", to: `${SA}/analytics`, icon: BarChart },
         { label: "Audit Logs", to: `${SA}/audit`,   icon: Shield },
         // { label: "Compliance", to: `${SA}/compliance`, icon: Shield },
         { label: "Reports",      to: `${SA}/reports`,      icon: BarChart },

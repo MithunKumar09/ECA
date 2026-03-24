@@ -117,7 +117,11 @@ export default function CourseProgressList() {
    *   2. Fallback: premium-priced courses as suggestions
    */
   const courses = useMemo(() => {
-    const enrolled = allCourses.filter((c) => premiumIds.has(String(c.id)));
+    const enrolled = allCourses.filter(
+      (c) =>
+        premiumIds.has(String(c.id)) ||
+        premiumIds.has(String((c as any)._id))
+    );
     if (enrolled.length > 0) return enrolled.slice(0, 2);
 
     // Fallback: suggest paid courses the student hasn't enrolled in yet
@@ -141,33 +145,40 @@ export default function CourseProgressList() {
         </div>
       )}
 
-      {/* Error state */}
+      {/* Error state — neutral, non-alarming */}
       {!loading && error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+          Couldn't load courses. Please refresh the page.
         </div>
       )}
 
       {/* Courses (max 2) */}
       {!loading && !error && courses.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {courses.slice(0, 2).map((course) => (
-            <CourseCard
-              key={course.id}
-              course={course}
-              isWishlisted={false}
-              onToggleWishlist={() => {}}
-              isPremium={premiumIds.has(String(course.id))}
-              onRequireEnroll={() => {}}
-            />
-          ))}
+          {courses.slice(0, 2).map((course) => {
+            // Check both .id and ._id — MongoDB may return either
+            const isEnrolled =
+              premiumIds.has(String(course.id)) ||
+              premiumIds.has(String((course as any)._id));
+
+            return (
+              <CourseCard
+                key={course.id}
+                course={course}
+                isWishlisted={false}
+                onToggleWishlist={() => {}}
+                isPremium={isEnrolled}
+                onRequireEnroll={() => {}}
+              />
+            );
+          })}
         </div>
       )}
 
-      {/* Nothing at all */}
+      {/* Empty state */}
       {!loading && !error && courses.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white/70 p-6 text-slate-600 text-sm">
-          No courses to show yet.
+        <div className="text-sm text-gray-500 py-4">
+          No enrolled courses yet.
         </div>
       )}
     </Card>
