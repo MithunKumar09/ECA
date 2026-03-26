@@ -106,9 +106,10 @@ export default function Mfa() {
           ? await totpVerify({ code, mfaTempToken })
           : await verifyMfa({ code, method: "otp", mfaTempToken });
 
-      if (res.ok && res.user && res.tokens) {
-        // ✅ persist user + tokens so guards see you as authenticated
-        doLogin({ user: res.user, tokens: res.tokens });
+      if (res.ok && res.user) {
+        // Auth is cookie-based — no tokens in JSON response after security upgrade.
+        // Cookies are already set by the backend; hydrate() confirms the session.
+        doLogin({ user: res.user });
         markVerified();
         // Re-hydrate from /auth/check so guards definitely see the session
         await hydrate();
