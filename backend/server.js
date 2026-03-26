@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import crypto from "crypto";
 
 import authRoutes from "./src/routes/auth.js";
@@ -55,6 +55,7 @@ import studentNotesRouter from "./src/routes/studentNotes.js";
 import contactMessagesRouter from "./src/routes/contactMessages.js";
 import teacherRouter from "./src/routes/teacher.js";
 
+
 import path from "path";
 import fs from "fs";
 
@@ -90,21 +91,22 @@ const corsOptions = {
     }
     return cb(null, isAllowed); 
   }, 
-  credentials: true, 
-  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], 
-  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"],
+  credentials: true,
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With", "If-None-Match", "Cache-Control"],
   exposedHeaders: ["ETag", "X-Data-Version"],
-  optionsSuccessStatus: 204, 
+  maxAge: 86400, // cache preflight for 24 h — reduces OPTIONS round-trips on every nav
+  optionsSuccessStatus: 204,
   preflightContinue: false,
 };
 
 // Apply CORS to all routes (this already handles OPTIONS preflight requests)
 app.use(cors(corsOptions));
 
-// Expose ETag and version headers to browsers
+// Vary: Origin ensures CDN/proxy caches keep per-origin copies.
+// Access-Control-Expose-Headers is set once via corsOptions above — no duplicate here.
 app.use((req, res, next) => {
-  res.header("Access-Control-Expose-Headers", "ETag, X-Data-Version");
-  res.header("Vary", "Origin"); // good for CDN/proxy caching
+  res.header("Vary", "Origin");
   next();
 });
 
@@ -115,23 +117,48 @@ app.post("/api/checkout/razorpay/webhook", express.raw({ type: "application/json
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 
-// Security headers
+// Security headers — HSTS configured here via helmet (single source of truth).
 app.disable("x-powered-by");
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: false,
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+}));
+
+// ── IPv6 normalisation helper ──────────────────────────────────────────────
+// express-rate-limit v8 throws ERR_ERL_KEY_GEN_IPV6 when req.ip contains an
+// IPv6-mapped IPv4 address (e.g. ::ffff:1.2.3.4) and no custom keyGenerator
+// is provided. All limiters below use this helper to prevent that error.
+function normalizeIp(req) {
+  const fwd = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const raw = fwd || String(req.ip || "anon");
+  return raw.replace(/^::ffff:/i, ""); // strip IPv4-mapped IPv6 prefix
+}
+
+const safeKeyGenerator = (req) => {
+  return ipKeyGenerator(req);
+};
+
 // --- Rate limiting on auth endpoints ---
 const authLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 100, // max per IP per window
+  windowMs: 10 * 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: safeKeyGenerator,
 });
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // 10 login attempts per 15m per IP
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: safeKeyGenerator,
 });
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: safeKeyGenerator,
 });
 app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth/mfa", otpLimiter);
@@ -139,65 +166,28 @@ app.use("/api/auth/resend-otp", otpLimiter);
 app.use("/api/auth/totp", otpLimiter);
 app.use("/api/auth/refresh", authLimiter);
 // M-1 fix: rate-limit endpoints that were missing protection.
-// forgot-password / precheck allow email enumeration at scale without limits.
-// signup endpoints enable account spam + email resource abuse.
 const forgotLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,                    // 5 attempts per IP per window
+  windowMs: 15 * 60 * 1000,
+  max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: safeKeyGenerator,
   message: { ok: false, message: "Too many requests, please try again later." },
 });
 const signupLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,                   // 10 signups per IP per hour
+  windowMs: 60 * 60 * 1000,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: safeKeyGenerator,
   message: { ok: false, message: "Too many requests, please try again later." },
 });
 app.use("/api/auth/forgot-password", forgotLimiter);
 app.use("/api/auth/precheck",        forgotLimiter);
 app.use("/api/auth/signup",          signupLimiter);
 app.use("/api/auth/signup-student",  signupLimiter);
-// Settings endpoints: 10 attempts per 15 min, keyed by user ID (from JWT sub)
-// Falls back to IP when sub is not available (e.g. unauthenticated email-verify)
-const settingsLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    // Use authenticated user ID when available; fallback to IP
-    const sub = req.user?.sub || req.user?._id;
-    return sub ? `user:${sub}` : String(req.headers["x-forwarded-for"] || req.ip || "anon");
-  },
-  message: { ok: false, message: "Too many requests, please try again later." },
-});
-app.use("/api/auth/me/password",      settingsLimiter);
-app.use("/api/auth/me/email/request", settingsLimiter);
-app.use("/api/auth/me/2fa",           settingsLimiter);
-// Session endpoints: 30 req/15 min (reads are more permissive than writes)
-const sessionLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    const sub = req.user?.sub || req.user?._id;
-    return sub ? `user:${sub}` : String(req.headers["x-forwarded-for"] || req.ip || "anon");
-  },
-  message: { ok: false, message: "Too many requests, please try again later." },
-});
-app.use("/api/auth/me/sessions", sessionLimiter);
-
-// HSTS (HTTPS-only)
-app.use((req, res, next) => {
-  res.setHeader(
-    "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains; preload"
-  );
-  next();
-});
+// NOTE: settingsLimiter and sessionLimiter are now applied at ROUTE level
+// in src/routes/auth.js (after requireAuth so req.user is populated).
 
 // Always enable trust proxy so req.secure correctly reflects the true protocol
 // when the server sits behind Nginx, Cloudflare, or any reverse proxy.
@@ -449,6 +439,19 @@ app.use((err, _req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5004;
+
+// ── Startup safety checks ──────────────────────────────────────────────────
+// Fail fast in production if critical secrets are missing or using defaults.
+if (process.env.NODE_ENV === "production") {
+  const mfaSecret = process.env.JWT_MFA_SECRET;
+  if (!mfaSecret || mfaSecret === "your-strong-mfa-secret") {
+    console.error("[FATAL] JWT_MFA_SECRET is missing or using the placeholder value. Set a strong unique secret in your Render environment variables.");
+    process.exit(1);
+  }
+  if (process.env.CROSS_SITE !== "1") {
+    console.warn("[warn] CROSS_SITE is not set to '1'. Auth cookies will use SameSite=Strict, which blocks all cross-site requests (Vercel → Render). Set CROSS_SITE=1 in Render environment variables.");
+  }
+}
 
 connectMongo()
   .then(() => {

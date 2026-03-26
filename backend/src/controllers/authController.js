@@ -231,8 +231,8 @@ export async function login(req, res) {
     const { access, refresh, jti, refreshExp } = mintTokens(user, ua);
     await saveRefresh(user.id, jti, refreshExp, ua, ip);
     setAuthCookies(req, res, { accessToken: access, refreshToken: refresh });
-    // Keep JSON tokens for compatibility (consider removing later)
-    return res.json({ ok: true, user, tokens: { accessToken: access, refreshToken: refresh } });
+    // Tokens are in HttpOnly cookies only — never expose in JSON body (XSS risk)
+    return res.json({ ok: true, user });
   } catch (err) {
     console.error("[auth] login error:", err?.message);
     return res.status(503).json({ ok: false, message: "Service temporarily unavailable" });
@@ -317,7 +317,7 @@ if (changed) await user.save();
     const { access, refresh, jti, refreshExp } = mintTokens(user, ua);
     await saveRefresh(user.id, jti, refreshExp, ua, ip);
     setAuthCookies(req, res, { accessToken: access, refreshToken: refresh });
-    return res.json({ ok: true, user, tokens: { accessToken: access, refreshToken: refresh } });
+    return res.json({ ok: true, user });
   } catch (e) {
     return res.status(400).json({ ok: false, message: "Invalid or expired session" });
   }
@@ -436,7 +436,7 @@ if (changed) await user.save();
     const { access, refresh, jti, refreshExp } = mintTokens(user, ua);
     await saveRefresh(user.id, jti, refreshExp, ua, ip);
     setAuthCookies(req, res, { accessToken: access, refreshToken: refresh });
-    return res.json({ ok: true, user, tokens: { accessToken: access, refreshToken: refresh } });
+    return res.json({ ok: true, user });
   } catch {
     return res.status(400).json({ ok: false, message: "Invalid or expired session" });
   }
@@ -726,7 +726,7 @@ export async function refresh(req, res) {
       ms: Date.now() - started,
     });
 
-    return res.json({ ok: true, accessToken: access });
+    return res.json({ ok: true }); // token is in the rotated HttpOnly cookie only
   } catch (e) {
     alog("[refresh:exception]", {
       rid,
@@ -760,14 +760,13 @@ export async function precheckEmail(req, res) {
 
   const user = await User.findOne({ email });
   if (user) {
-    // already provisioned → must SignIn (MFA applied by login flow)
-    return res.json({ mode: 'signin', reason: 'Account already exists', mfa: user.mfa || { required:false, method:null } });
+    // Account exists — do NOT reveal MFA configuration to unauthenticated callers
+    return res.json({ mode: 'signin', reason: 'Account already exists' });
   }
 
   const inv = await Invitation.findOne({ email, expiresAt: { $gt: new Date() } });
   if (inv) {
-    // legacy pending invite — direct them to SignIn (accept flow routes there)
-    return res.json({ mode: 'signin', reason: 'You have a pending invitation', mfa: inv.mfa || { required:false, method:null } });
+    return res.json({ mode: 'signin', reason: 'You have a pending invitation' });
   }
 
   return res.json({ mode: 'signup' });
@@ -846,6 +845,9 @@ export async function resetPassword(req, res) {
     user.passwordResetToken = null;
     user.passwordResetExpires = null;
     await user.save();
+
+    // Revoke all refresh tokens — force logout from all devices after password reset
+    await RefreshToken.deleteMany({ userId: user._id });
 
     alog("[resetPassword:success]", { 
       rid, 
@@ -940,8 +942,8 @@ export async function forgotPassword(req, res) {
         stack: emailError?.stack?.split('\n')[0]
       });
       
-      // In development, always log the reset link for testing
-      console.log(`[DEV] Password reset link for ${normalizedEmail}: ${resetLink}`);
+      // Log reset link only in non-production environments (never log tokens in production)
+      if (process.env.NODE_ENV !== 'production') console.log(`[DEV] Password reset link for ${normalizedEmail}: ${resetLink}`);
       
       // Don't fail the request if email fails - user still gets success message
       // This prevents revealing if email exists when SMTP is down
@@ -1061,7 +1063,7 @@ export async function requestEmailChange(req, res) {
     await sendEmailChangeVerification(normalized, verifyLink);
   } catch (e) {
     console.error("[settings] email change verification send failed:", e?.message);
-    console.log(`[DEV] Email change verify link for ${normalized}: ${verifyLink}`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[DEV] Email change verify link for ${normalized}: ${verifyLink}`);
   }
 
   writeAudit(user._id, "EMAIL_CHANGE_REQUEST", req, { newEmail: normalized });

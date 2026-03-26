@@ -63,14 +63,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     const stopSSE = () => {
       try { esRef.current?.close(); } catch {}
       esRef.current = null;
-      if (interval) clearInterval(interval);
+      if (interval) { clearInterval(interval); interval = null; }
     };
 
     // ❗ Don’t open SSE until user is authenticated
     if (!isAuthenticated || !userId) {
-      console.debug('[notify] skip opening SSE: not authenticated yet');
+      console.debug('[notify] skip opening SSE: not authenticated');
       stopSSE();
-      return;
+      return stopSSE; // return cleanup so React can call it if deps change while unauthenticated
     }
 
     // First sync once the user is known
@@ -137,7 +137,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
       es.onerror = (e: any) => {
         console.warn('[notify][sse] error — falling back to polling', e);
-        stopSSE();
+        stopSSE(); // closes SSE and nulls interval
+        // Only start polling if not already running (interval was nulled by stopSSE)
         if (!interval) interval = setInterval(refresh, 60_000);
       };
 

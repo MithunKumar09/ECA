@@ -6,7 +6,7 @@ import { generatePeriodicReminders } from "../controllers/notificationsControlle
 import { runEnrollmentRecovery } from "../jobs/enrollmentRecoveryJob.js";
 
 const DBG = process.env.DEBUG_NOTIFICATIONS !== '0';
-// const slog = (...args) => { if (DBG) console.log('[scheduler]', ...args); };
+const slog = (...args) => { if (DBG) console.log('[scheduler]', ...args); };
 
 function nextTime(from, recurrence) {
   const d = new Date(from.getTime());
@@ -59,11 +59,11 @@ export function startScheduler() {
           await n.save();
           // slog('delivered', { id: n._id, nextDueAt: n.dueAt, resolvedAt: n.resolvedAt, sentCount: n.sentCount });
         } catch (err) {
-          // console.error('[scheduler] deliver error', err);
+          console.error('[scheduler] deliver error:', err?.message);
         }
       }
     } catch (e) {
-      // console.error('[scheduler] tick error (outer):', e);
+      console.error('[scheduler] tick error:', e?.message);
     }
   }, TICK_MS); // configurable
 }
